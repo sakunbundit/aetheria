@@ -309,7 +309,7 @@ noscript{position:fixed;inset:0;display:flex;align-items:center;justify-content:
 // =====================================================================
 const Logic = (function () {
   'use strict';
-  const VERSION = '0.54.1';
+  const VERSION = '0.55.0';
   const SAVE_VERSION = 4;
   const MAX_LEVEL = 150;   // 0.13: ขยายจาก 50 เป็น 99 · 0.16: ขยายเป็น 120 · 0.33: ขยายเป็น 150
   const MAP_W = 1600, MAP_H = 1200;
@@ -2409,6 +2409,50 @@ const Logic = (function () {
     return { rows, taken, removeCloud };
   }
 
+
+  // ---------- เห็นผู้เล่นคนอื่นในแผนที่เดียวกัน (0.55) — ข้อมูลล้วน ไม่แตะเน็ต/DOM ----------
+  // ข้อมูลที่ผู้เล่นอื่นส่งมาเชื่อไม่ได้ (ใครก็ส่งอะไรเข้าช่องก็ได้) จึงตรวจทุกช่องก่อนใช้ ของที่ผิดปกติถูกทิ้งทั้งก้อน
+  const PEER_SEND_INTERVAL = 0.25;   // วินาที: ส่งตำแหน่งตัวเองเมื่อมีการขยับ
+  const PEER_KEEPALIVE = 1.5;       // วินาที: ยืนเฉย ๆ ก็ส่งซ้ำเป็นระยะ ให้คนที่เพิ่งเข้ามาเห็น
+  const PEER_TIMEOUT = 6;           // วินาที: เงียบเกินนี้ถือว่าออกไปแล้ว
+  const PEER_MAX = 40;              // แสดงคนอื่นได้พร้อมกันไม่เกินนี้ (กันเครื่องอืด)
+  const PEER_ID_RE = /^[A-Za-z0-9_-]{3,40}$/;
+  function peerChannel(mapId) { return MAPS[mapId] ? 'aetheria-map-' + mapId : null; }
+  function sanitizePeer(raw) {
+    if (!raw || typeof raw !== 'object' || typeof raw.id !== 'string' || !PEER_ID_RE.test(raw.id)) return null;
+    const num = (v, lo, hi) => (typeof v === 'number' && isFinite(v)) ? Math.min(hi, Math.max(lo, v)) : null;
+    const nm = validateName(raw.name);
+    const x = num(raw.x, 0, MAP_W), y = num(raw.y, 0, MAP_H), lv = num(raw.level, 1, MAX_LEVEL);
+    if (!nm.ok || x === null || y === null || lv === null || typeof raw.job !== 'string' || !JOBS[raw.job]) return null;
+    const equip = emptyEquip();
+    if (raw.equip && typeof raw.equip === 'object') {
+      for (const slot of EQUIP_SLOT_KEYS) {
+        const id = raw.equip[slot];
+        if (typeof id === 'string' && ITEMS[id] && ITEMS[id].type === 'equip' && slotAccepts(slot, ITEMS[id].slot)) equip[slot] = id;
+      }
+    }
+    return { id: raw.id, name: nm.name, job: raw.job, level: Math.floor(lv), x, y, face: raw.face === -1 ? -1 : 1, mv: raw.mv === true, equip };
+  }
+  // ข้อมูลตำแหน่ง/หน้าตาของตัวเองที่จะส่งออก (ตัวเล็กที่สุดเท่าที่พอ)
+  function peerPacket(id, name, p, face, moving) {
+    const equip = {};
+    for (const k of EQUIP_SLOT_KEYS) if (p.equip && p.equip[k]) equip[k] = p.equip[k];
+    return { id, name, job: p.job, level: p.level, x: Math.round(p.x), y: Math.round(p.y), face: face === -1 ? -1 : 1, mv: !!moving, equip };
+  }
+  // ข้อความแชท/อีโมตจากผู้เล่นอื่น: คืน { text } หรือ { emote } หรือ null
+  function sanitizePeerSay(raw) {
+    if (!raw || typeof raw !== 'object' || typeof raw.id !== 'string' || !PEER_ID_RE.test(raw.id)) return null;
+    if (typeof raw.emote === 'string') { const em = emoteById(raw.emote); return em ? { id: raw.id, emote: em.id } : null; }
+    const t = sanitizeChat(raw.text);
+    return t && t[0] !== '/' ? { id: raw.id, text: t } : null;
+  }
+  // ขยับตำแหน่งที่แสดงเข้าหาตำแหน่งล่าสุดที่ได้รับ (นุ่มนวล ไม่กระตุกตามความถี่ส่ง) คืน { x, y, moving }
+  function peerStep(shown, target, dt) {
+    const k = Math.min(1, dt * 9), dx = target.x - shown.x, dy = target.y - shown.y, far = Math.hypot(dx, dy) > 300;   // ไกลมาก = วาร์ป ให้กระโดดไปเลย
+    const x = far ? target.x : shown.x + dx * k, y = far ? target.y : shown.y + dy * k;
+    return { x, y, moving: Math.hypot(target.x - x, target.y - y) > 1.2 };
+  }
+
   // ---------- อัพสกิล ----------
   // แต้มสกิลมาจาก Job Level (0.9) ไม่ใช่เลเวลตัวละคร: Job Lv ละ 1 แต้ม (Job Lv 1 = 0 แต้ม) — คำนวณจากเลเวลเสมอ ไม่เก็บ
   function skillPointsEarned(jobLevel) { return Math.max(0, Math.floor(jobLevel) - 1); }
@@ -3559,6 +3603,7 @@ const Logic = (function () {
     MAX_ACCOUNTS, MAX_CHARS, NAME_MAX, emptyProfiles, sanitizeProfiles, validateName, addAccount, addChar, removeChar, removeAccount,
     findAccount, findChar, charKey, migrateLegacy, peekSave,
     CLOUD_PROFILES_KEY, cloudCharKey, cloudHash, cloudHashes, cloudDirty, cloudDeleted, mergeProfileLists, cloudMerge,
+    PEER_SEND_INTERVAL, PEER_KEEPALIVE, PEER_TIMEOUT, PEER_MAX, peerChannel, sanitizePeer, peerPacket, sanitizePeerSay, peerStep,
     WORLD_POS, WORLD_REGION, DIR_NAME, DIR_ARROW, warpDir, CHAT_MAX, CHAT_NPC_RANGE, ASSISTANT_NAME, isRefineMat, lootClass, lootNotable, sanitizeChat, parseChat, EMOTES, EMOTE_COOLDOWN, EMOTE_TIME, emoteById, emoteByCmd, npcReply, addressedToAssistant, assistantReply
   };
 })();
@@ -3810,7 +3855,7 @@ const Logic = (function () {
     return s === 'ok' ? '☁️ บันทึกขึ้นเน็ตแล้ว' : s === 'sending' ? '⏳ กำลังบันทึกขึ้นเน็ต…' : '⚠️ ยังส่งขึ้นเน็ตไม่ได้ (เก็บในเครื่องไว้ก่อน' + (CLOUD.msg ? ': ' + CLOUD.msg : '') + ')';
   }
   function paintCloud() {
-    $('ver').textContent = (game.verBase || '') + (CLOUD.on ? ' · ' + cloudLabel() : '');
+    $('ver').textContent = (game.verBase || '') + (CLOUD.on ? ' · ' + cloudLabel() + mpLabel() : '');
     document.querySelectorAll('.cloudchip').forEach(e => { e.textContent = (CLOUD.session ? '👤 ' + CLOUD.session.email + ' · ' : '') + cloudLabel(); });
   }
   function setCloud(status, msg) { CLOUD.status = status; CLOUD.msg = msg || ''; paintCloud(); }
@@ -3976,6 +4021,7 @@ const Logic = (function () {
     CLOUD.on = false; CLOUD.session = null; CLOUD.pulled = false; NS = '';
     profiles = L.emptyProfiles();
     if (active) { active = null; state = L.newGameState(); setAuto(false, ''); enterMap(state.player.map); game.deadT = 0; game.combatT = 0; rt.cd = {}; }
+    mpSync();
     game.verBase = 'Aetheria v' + L.VERSION; paintCloud();
     auth.mode = 'in';
     openLogin(note || '');
@@ -4008,6 +4054,149 @@ const Logic = (function () {
     }
     if (!CLOUD.session) CLOUD.session = loadSession();
     if (CLOUD.session) enterCloud(); else openLogin(note);
+  }
+
+  // ---------- ผู้เล่นคนอื่นในแผนที่เดียวกัน (0.55) — Supabase Realtime (Broadcast) ผ่าน WebSocket ตรง ๆ ไม่ใช้ไลบรารี ----------
+  // แบบเบา: เห็นตัวละคร ชื่อ เลเวล หน้าตา ตำแหน่ง แชท อีโมต ของคนในแผนที่เดียวกัน · มอนสเตอร์/ของตกต่างคนต่างเล่นของตัวเอง (ไม่ซิงก์) · กันโกงไม่ได้
+  // ห้องแยกตามแผนที่ (aetheria-map-<id>) · ข้อมูลที่รับมาเชื่อไม่ได้ ผ่าน L.sanitizePeer / L.sanitizePeerSay ทุกครั้ง
+  const MP = { myId: '', ws: null, topic: '', joinRef: '', ready: false, failed: false, ref: 0, peers: {}, hb: 0, sendT: 0, quietT: 99, retry: 0, reconnectT: 0, want: null, lastX: -1, lastY: -1, lastFace: 0, lastMv: false };
+  function mpOn() { return !!(CLOUD.on && CLOUD.session && active && state); }
+  function mpMyId() { return CLOUD.session.uid.slice(0, 8) + '-' + active.ch.id; }
+  function mpOpen() { return !!(MP.ws && MP.ws.readyState === 1); }
+  function mpRaw(o) { if (mpOpen()) { try { MP.ws.send(JSON.stringify(o)); } catch (e) { /* ไม่เป็นไร ลองใหม่รอบหน้า */ } } }
+  function mpSend(event, payload) { if (MP.ready && MP.topic) mpRaw({ topic: MP.topic, event: 'broadcast', payload: { type: 'broadcast', event, payload }, ref: String(++MP.ref) }); }
+  function mpCount() { return Object.keys(MP.peers).length; }
+  function mpLabel() {   // ต่อท้ายป้ายสถานะมุมซ้าย
+    if (!MP.want) return '';
+    return MP.failed ? ' · 👥 เชื่อมต่อผู้เล่นอื่นไม่ได้' : MP.ready ? ' · 👥 ในแผนที่ ' + (mpCount() + 1) + ' คน' : ' · 👥 กำลังเชื่อมต่อ…';
+  }
+  function mpClearPeers() { MP.peers = {}; game.emotes = game.emotes.filter(e => !e.peer); paintCloud(); }
+  function mpLeaveTopic() { if (MP.topic && MP.ready) { mpSend('bye', { id: MP.myId }); } if (MP.topic) mpRaw({ topic: MP.topic, event: 'phx_leave', payload: {}, ref: String(++MP.ref) }); MP.topic = ''; MP.ready = false; }
+  function mpJoin() {
+    if (!MP.want || !mpOpen()) return;
+    const topic = 'realtime:' + MP.want;
+    if (MP.topic === topic) return;
+    mpLeaveTopic();
+    if (mpOn()) MP.myId = mpMyId();
+    MP.topic = topic; MP.joinRef = String(++MP.ref); MP.failed = false;
+    mpRaw({ topic, event: 'phx_join', payload: { config: { broadcast: { self: false, ack: false }, presence: { key: '' }, postgres_changes: [], private: false } }, ref: MP.joinRef, join_ref: MP.joinRef });
+    paintCloud();
+  }
+  function mpConnect() {
+    if (MP.ws || !MP.want) return;
+    let ws;
+    try { ws = new WebSocket(SB_URL.replace(/^https/, 'wss') + '/realtime/v1/websocket?apikey=' + encodeURIComponent(SB_KEY) + '&vsn=1.0.0'); }
+    catch (e) { MP.failed = true; paintCloud(); return mpRetry(); }
+    MP.ws = ws;
+    ws.onopen = () => { MP.retry = 0; MP.hb = 0; mpJoin(); };
+    ws.onmessage = ev => mpMessage(ev.data);
+    ws.onerror = () => { /* onclose จะตามมา */ };
+    ws.onclose = () => { if (MP.ws !== ws) return; MP.ws = null; MP.ready = false; MP.topic = ''; MP.failed = !!MP.want; mpClearPeers(); mpRetry(); };
+  }
+  function mpRetry() {
+    if (!MP.want) return;
+    clearTimeout(MP.reconnectT); MP.retry = Math.min(MP.retry + 1, 6);
+    MP.reconnectT = setTimeout(() => { if (MP.want && !MP.ws) mpConnect(); }, 2000 * MP.retry);
+  }
+  function mpClose() {
+    clearTimeout(MP.reconnectT);
+    mpLeaveTopic();
+    const ws = MP.ws; MP.ws = null; MP.retry = 0; MP.failed = false;
+    if (ws) { try { ws.close(); } catch (e) { /* ไม่เป็นไร */ } }
+    mpClearPeers();
+  }
+  // เรียกตอนเข้าแผนที่ (enterMap) และตอนออกจากระบบ: เข้าห้องของแผนที่ปัจจุบัน หรือออกจากห้องถ้าไม่ได้เล่นอยู่
+  function mpSync() {
+    const want = mpOn() ? L.peerChannel(state.player.map) : null;
+    if (want === MP.want && (want === null || MP.ws)) return;
+    MP.want = want; MP.quietT = 99;
+    mpClearPeers();
+    if (!want) { mpClose(); return; }
+    if (mpOpen()) mpJoin(); else mpConnect();
+  }
+  function mpMessage(data) {
+    let m; try { m = JSON.parse(data); } catch (e) { return; }
+    if (!m || m.topic !== MP.topic) return;
+    if (m.event === 'phx_reply' && m.ref === MP.joinRef) {
+      const ok = !!(m.payload && m.payload.status === 'ok');
+      MP.ready = ok; MP.failed = !ok; MP.quietT = 99;
+      if (!ok) addLog('⚠ เชื่อมต่อผู้เล่นคนอื่นไม่ได้ (เล่นคนเดียวไปก่อน จะลองใหม่เอง)', 'cmd');
+      paintCloud(); return;
+    }
+    if (m.event === 'phx_error' || m.event === 'phx_close') { MP.ready = false; MP.topic = ''; mpClearPeers(); setTimeout(mpJoin, 3000); return; }
+    if (m.event !== 'broadcast' || !m.payload) return;
+    const ev = m.payload.event, body = m.payload.payload;
+    if (ev === 'pos') mpGotPos(body);
+    else if (ev === 'say') mpGotSay(body);
+    else if (ev === 'bye') mpGotBye(body);
+  }
+  function mpGotPos(raw) {
+    const q = L.sanitizePeer(raw);
+    if (!q || !active || q.id === mpMyId()) return;
+    let e = MP.peers[q.id];
+    if (!e) {
+      if (mpCount() >= L.PEER_MAX) return;
+      e = MP.peers[q.id] = { id: q.id, sx: q.x, sy: q.y, tx: q.x, ty: q.y, moving: false, up: false, lx: q.x, ly: q.y, seen: 0, p: L.newPlayer() };
+      addLog('👥 ' + q.name + ' (Lv ' + q.level + ') เข้ามาในแผนที่', 'cmd');
+      MP.quietT = 99;   // คนเพิ่งมา: ส่งตำแหน่งตัวเองให้เห็นทันที
+      paintCloud();
+    }
+    e.name = q.name; e.job = q.job; e.level = q.level; e.face = q.face; e.mv = q.mv; e.tx = q.x; e.ty = q.y; e.seen = 0;
+    e.p.job = q.job; e.p.level = q.level; e.p.equip = q.equip; e.p.map = state.player.map;
+  }
+  function mpGotSay(raw) {
+    const s = L.sanitizePeerSay(raw), e = s && MP.peers[s.id];
+    if (!e) return;
+    if (s.text) {
+      addLog('💬 ' + e.name + ': ' + s.text, 'chat');
+      addFloat(e.sx, e.sy - 74, s.text.length > 22 ? s.text.slice(0, 21) + '…' : s.text, '#fff3b0', 12);
+    } else {
+      const em = L.emoteById(s.emote);
+      game.emotes = game.emotes.filter(x => x.peer !== e.id); game.emotes.push({ peer: e.id, icon: em.icon, t: 0 });
+      addLog('* ' + e.name + ' ' + em.icon + ' ' + em.name, 'emote');
+    }
+  }
+  function mpGotBye(raw) {
+    const id = raw && typeof raw.id === 'string' ? raw.id : '', e = MP.peers[id];
+    if (!e) return;
+    addLog('👥 ' + e.name + ' ออกจากแผนที่', 'cmd');
+    delete MP.peers[id]; game.emotes = game.emotes.filter(x => x.peer !== id); paintCloud();
+  }
+  // ทุกเฟรม: ขยับตัวละครคนอื่นเข้าหาตำแหน่งล่าสุด · ลบคนที่เงียบไป · ส่งตำแหน่งตัวเอง
+  function mpTick(dt) {
+    if (!MP.want) return;
+    MP.hb += dt;
+    if (MP.hb > 25 && mpOpen()) { MP.hb = 0; mpRaw({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: String(++MP.ref) }); }
+    for (const id in MP.peers) {
+      const e = MP.peers[id]; e.seen += dt;
+      if (e.seen > L.PEER_TIMEOUT) { addLog('👥 ' + e.name + ' ออกจากแผนที่', 'cmd'); delete MP.peers[id]; game.emotes = game.emotes.filter(x => x.peer !== id); paintCloud(); continue; }
+      const s = L.peerStep({ x: e.sx, y: e.sy }, { x: e.tx, y: e.ty }, dt);
+      e.sx = s.x; e.sy = s.y; e.moving = s.moving || e.mv;
+    }
+    if (!MP.ready || !mpOn()) return;
+    const p = state.player; MP.sendT += dt; MP.quietT += dt;
+    const changed = Math.abs(p.x - MP.lastX) + Math.abs(p.y - MP.lastY) > 1 || rt.face !== MP.lastFace || !!rt.moving !== MP.lastMv;
+    if ((changed && MP.sendT >= L.PEER_SEND_INTERVAL) || MP.quietT >= L.PEER_KEEPALIVE) {
+      MP.sendT = 0; MP.quietT = 0; MP.lastX = p.x; MP.lastY = p.y; MP.lastFace = rt.face; MP.lastMv = !!rt.moving;
+      mpSend('pos', L.peerPacket(mpMyId(), chatName(), p, rt.face, rt.moving));
+    }
+  }
+  // วาดตัวละครคนอื่นด้วยโค้ดวาดตัวละครเดียวกับของเรา (ยืมสถานะกลางของ rt/life/pv ชั่วคราวแล้วคืนให้ครบ)
+  function drawPeer(q) {
+    const sv = { face: rt.face, moving: rt.moving, swingT: rt.swingT, act: rt.act, trail: rt.trail, hurtT: rt.hurtT, dodgeT: rt.dodgeT, comboT: rt.comboT, combo: rt.combo, stance: rt.stance };
+    const lf = { gaze: life.gaze, gazeY: life.gazeY, blink: life.blink, hs: life.hs }, pvs = { x: pv.x, y: pv.y, up: pv.up }, dead = game.deadT, cp = curPose;
+    try {
+      rt.face = q.face; rt.moving = q.moving; rt.swingT = 0; rt.act = null; rt.trail = []; rt.hurtT = 0; rt.dodgeT = 0; rt.comboT = 0; rt.combo = 0; rt.stance = 0;
+      life.gaze = 0; life.gazeY = 0; life.blink = false; life.hs = 0; game.deadT = 0;
+      pv.x = q.lx; pv.y = q.ly; pv.up = q.up;
+      q.p.x = q.sx; q.p.y = q.sy;
+      drawPlayer(q.p);
+      q.up = pv.up; q.lx = q.sx; q.ly = q.sy;
+    } finally {
+      Object.assign(rt, sv); Object.assign(life, lf); pv.x = pvs.x; pv.y = pvs.y; pv.up = pvs.up; game.deadT = dead; curPose = cp;
+    }
+    label(q.name, q.sx, q.sy + 17, '#bfe8ff', 11);
+    label('Lv ' + q.level, q.sx, q.sy + 28, '#e8f4ff', 9);
   }
   // ---------- หน้าต่างโต้ตอบ ----------
   function el(tag, cls, text) {
@@ -4276,6 +4465,7 @@ const Logic = (function () {
     resetRuntime();
     game.floats = []; game.emotes = []; game.corpses = []; game.fx = []; game.marker = null; game.drops = [];
     game.warpCool = 2;
+    mpSync();   // เข้าห้องผู้เล่นของแผนที่นี้ (ออกจากห้องเก่า)
   }
 
   // ---------- ชิ้นส่วนหน้าตาที่ใช้ร่วมกัน: ไอคอนไอเทม แท็บ ช่องตาราง กล่องรายละเอียด ----------
@@ -5658,6 +5848,7 @@ const Logic = (function () {
     for (const f of game.fx) f.t += dt;
     game.fx = game.fx.filter(f => f.t < f.dur);
     if (game.marker) { game.marker.t -= dt; if (game.marker.t <= 0) game.marker = null; }
+    mpTick(dt);
     game.saveT += dt;
     if (game.saveT > 8) { game.saveT = 0; save(); }
   }
@@ -9215,6 +9406,7 @@ const Logic = (function () {
     for (const c of game.corpses) if (near(c.m)) add(c.m.x, c.m.y, () => drawCorpse(c), -1);
     for (const dr of game.drops) if (near(dr)) add(dr.x, dr.y, () => drawDrop(dr), -2);
     for (const n of map.npcs) add(n.x, n.y, () => drawNpc(n));
+    for (const q of Object.values(MP.peers)) add(q.sx, q.sy, () => drawPeer(q), 0.5);   // ผู้เล่นคนอื่น (0.55)
     for (const w of map.warps) add(w.x, w.y, () => drawWarp(w), -90);
     if (active) list.push({ k: proj(p.x, p.y).sy, f: () => billboard(p.x, p.y, () => { drawPlayerBody(p); }, { nofog: true }) });
     list.sort((a, b) => a.k - b.k);
@@ -9262,6 +9454,7 @@ const Logic = (function () {
     for (const c of game.corpses) if (c.m.x > vl && c.m.x < vr && c.m.y > vt && c.m.y < vb) list.push({ y: c.m.y - 1, f: () => drawCorpse(c) });
     for (const d of game.drops) if (d.x > vl && d.x < vr && d.y > vt && d.y < vb) list.push({ y: d.y - 6, f: () => drawDrop(d) });
     for (const n of map.npcs) list.push({ y: n.y, f: () => drawNpc(n) });
+    for (const q of Object.values(MP.peers)) list.push({ y: q.sy, f: () => drawPeer(q) });   // ผู้เล่นคนอื่น (0.55)
     for (const w of map.warps) list.push({ y: w.y, f: () => drawWarp(w) });
     if (active) list.push({ y: p.y, f: () => { drawPlayerBody(p); } });   // หน้าเลือกตัวละคร: ไม่วาดตัวสมมติ
     list.sort((a, b) => a.y - b.y);
@@ -9331,7 +9524,7 @@ const Logic = (function () {
     return best;
   }
   // ---------- อีโมต (0.53) ----------
-  function emoteAnchor(e) { if (e.me) { if (!state) return null; return { x: state.player.x, y: state.player.y - 86 }; } return { x: e.x, y: e.y }; }
+  function emoteAnchor(e) { if (e.peer) { const q = MP.peers[e.peer]; return q ? { x: q.sx, y: q.sy - 86 } : null; } if (e.me) { if (!state) return null; return { x: state.player.x, y: state.player.y - 86 }; } return { x: e.x, y: e.y }; }
   function drawEmote(e, x, y) {   // ฟองคำพูดสีขาวขอบเข้มมีหางชี้ลง เด้งเข้า (overshoot) ลอยเบา ๆ แล้วจาง
     const t = e.t, T = L.EMOTE_TIME, sc = t < 0.28 ? Math.sin(t / 0.28 * Math.PI / 2) * 1.25 : t < 0.4 ? 1.25 - (t - 0.28) / 0.12 * 0.25 : 1;
     const al = t > T - 0.5 ? Math.max(0, (T - t) / 0.5) : 1, by = y - 4 + Math.sin(t * 5) * 1.5;
@@ -9349,6 +9542,7 @@ const Logic = (function () {
     game.emoCd = game.time + L.EMOTE_COOLDOWN;
     game.emotes = game.emotes.filter(x => !x.me); game.emotes.push({ me: true, icon: em.icon, t: 0 });
     addLog('* ' + chatName() + ' ' + em.icon + ' ' + em.name, 'emote');
+    mpSend('say', { id: MP.myId, emote: em.id });
     const n = chatNearbyNpc();   // NPC ที่ยืนใกล้ตอบกลับด้วยอีโมตสั้น ๆ
     if (n) setTimeout(() => { if (state && game.emotes) { const r = L.EMOTES[[0, 7, 8, 5][Math.floor(Math.random() * 4)]]; game.emotes.push({ x: n.x, y: n.y - 70, icon: r.icon, t: 0 }); } }, 700);
   }
@@ -9387,6 +9581,7 @@ const Logic = (function () {
     if (c.kind === 'cmd') { chatCommand(c); return; }
     const p = state.player;
     addLog('💬 ' + chatName() + ': ' + c.text, 'chat');
+    mpSend('say', { id: MP.myId, text: c.text });   // ผู้เล่นคนอื่นในแผนที่เห็นด้วย
     addFloat(p.x, p.y - 74, c.text.length > 22 ? c.text.slice(0, 21) + '…' : c.text, '#ffffff', 12);
     if (L.addressedToAssistant(c.text)) {
       const qt = ($('qtrack').textContent || '').split('\n').pop().replace('📜', '').trim();   // บรรทัดเควสของ HUD (บรรทัดสุดท้าย)
@@ -9647,7 +9842,7 @@ const Logic = (function () {
   }, 250);
 
   // ช่องทางให้ตัวตรวจสอบอัตโนมัติเรียกดูสถานะ (ไม่มีผลกับผู้เล่น)
-  window.__aetheria = { L, sendEmote, openEmotes, life, react, playerHurt, state: () => state, world: () => world, rt, game, enterMap, talkTo, openBag, settings: () => settings, toggleAuto, openAuto, openCardBook, openStatus, openChar, ui, profiles: () => profiles, active: () => active, CLOUD, cloudRun, logout, enterCharacter, leaveToSelect, openAccounts, openChars, v3, proj, pxPerUnit, screenToWorld, computePose, pv };
+  window.__aetheria = { L, sendEmote, openEmotes, life, react, playerHurt, state: () => state, world: () => world, rt, game, enterMap, talkTo, openBag, settings: () => settings, toggleAuto, openAuto, openCardBook, openStatus, openChar, ui, profiles: () => profiles, active: () => active, CLOUD, cloudRun, logout, MP, mpGotPos, enterCharacter, leaveToSelect, openAccounts, openChars, v3, proj, pxPerUnit, screenToWorld, computePose, pv };
 })();
 </script>
 </body>
