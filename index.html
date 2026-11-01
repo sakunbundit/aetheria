@@ -309,7 +309,7 @@ noscript{position:fixed;inset:0;display:flex;align-items:center;justify-content:
 // =====================================================================
 const Logic = (function () {
   'use strict';
-  const VERSION = '0.54.0';
+  const VERSION = '0.54.1';
   const SAVE_VERSION = 4;
   const MAX_LEVEL = 150;   // 0.13: ขยายจาก 50 เป็น 99 · 0.16: ขยายเป็น 120 · 0.33: ขยายเป็น 150
   const MAP_W = 1600, MAP_H = 1200;
@@ -9367,7 +9367,7 @@ const Logic = (function () {
   function emoteKey(e) {   // Alt+1…0 ส่งอีโมต · Alt+L เปิดรายการ (คืน true ถ้าใช้ปุ่มนี้)
     if (!e.altKey || e.ctrlKey || e.metaKey || !state) return false;
     if (/^[0-9]$/.test(e.key)) { e.preventDefault(); if (!game.modal) sendEmote((L.EMOTES[(+e.key + 9) % 10] || {}).id); return true; }
-    if (e.key.toLowerCase() === 'l') { e.preventDefault(); if (game.modal && game.modalKind === 'emote') closeModal(); else if (!game.modal) openEmotes(); return true; }
+    if ((e.key || '').toLowerCase() === 'l') { e.preventDefault(); if (game.modal && game.modalKind === 'emote') closeModal(); else if (!game.modal) openEmotes(); return true; }
     return false;
   }
   function chatCommand(c) {
@@ -9538,7 +9538,7 @@ const Logic = (function () {
   window.addEventListener('keydown', e => {
     if (chatKey(e)) return;
     if (emoteKey(e)) return;   // ช่องแชท: พิมพ์อยู่ปุ่มไม่ไปควบคุมตัวละคร · Enter เปิดช่องแชท
-    const k = e.key.toLowerCase();
+    const k = (e.key || '').toLowerCase();   // ตัวกรอกรหัสอัตโนมัติของเบราว์เซอร์ส่งเหตุการณ์ปุ่มที่ไม่มี key
     unlockAudio();
     if (k === 'escape') { if (game.modal && game.modalKind !== 'fatal' && game.modalKind.indexOf('title') !== 0) closeModal(); else if (!game.modal) openPause(); e.preventDefault(); return; }
     if (k === 'p') { if (game.modalKind === 'pause') closeModal(); else if (!game.modal) openPause(); return; }
@@ -9574,7 +9574,7 @@ const Logic = (function () {
     if (k === 'm') { toggleSound(); return; }
     game.keys[k] = true;
   });
-  window.addEventListener('keyup', e => { game.keys[e.key.toLowerCase()] = false; });
+  window.addEventListener('keyup', e => { game.keys[(e.key || '').toLowerCase()] = false; });
   // ออกจากเบราว์เซอร์/สลับแท็บแล้วเกม "ไม่หยุด" (0.39.1): แค่ปล่อยปุ่มที่ค้างและเซฟไว้กันพลาด
   window.addEventListener('blur', () => { for (const k in game.keys) game.keys[k] = false; if (state) save(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden && state) save(); });
