@@ -309,7 +309,7 @@ noscript{position:fixed;inset:0;display:flex;align-items:center;justify-content:
 // =====================================================================
 const Logic = (function () {
   'use strict';
-  const VERSION = '0.53.0';
+  const VERSION = '0.54.0';
   const SAVE_VERSION = 4;
   const MAX_LEVEL = 150;   // 0.13: ขยายจาก 50 เป็น 99 · 0.16: ขยายเป็น 120 · 0.33: ขยายเป็น 150
   const MAP_W = 1600, MAP_H = 1200;
@@ -2357,6 +2357,58 @@ const Logic = (function () {
   function lootClass(id) { return isRefineMat(id) ? 'mat' : 'r' + rarityOf(id); }
   // สำคัญพอจะเน้น (ตัวหนา+แสง): ระดับเอพิกขึ้นไป หรือวัตถุดิบตีบวก หรือการ์ดระดับดีขึ้นไป
   function lootNotable(id) { return isRefineMat(id) || rarityOf(id) >= 3; }
+
+  // ---------- เซฟออนไลน์ (0.54) — ข้อมูลล้วน ไม่แตะเน็ต/DOM ----------
+  // แบ่งข้อมูลของบัญชีออนไลน์เป็นแถว: 'profiles' = รายชื่อบัญชี/ตัวละครในเกม · 'c:<บัญชี>_<ตัวละคร>' = ข้อความเซฟของตัวละครนั้น (ตัวละครละแถว)
+  const CLOUD_PROFILES_KEY = 'profiles';
+  function cloudCharKey(accId, charId) { return 'c:' + accId + '_' + charId; }
+  function cloudHash(data) {
+    const s = JSON.stringify(data); let h = 5381;
+    for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0;
+    return h.toString(36) + ':' + s.length;
+  }
+  function cloudHashes(parts) { const o = {}; for (const k of Object.keys(parts)) o[k] = cloudHash(parts[k]); return o; }
+  // แถวที่เปลี่ยนไปจากตอนซิงก์ล่าสุด (ยังไม่ได้ส่งขึ้นเน็ต)
+  function cloudDirty(parts, synced) { const h = cloudHashes(parts); return Object.keys(h).filter(k => synced[k] !== h[k]); }
+  // แถวที่เคยซิงก์แล้วแต่ตอนนี้ในเครื่องหายไป (ผู้เล่นลบ) → ต้องลบบนเน็ตด้วย
+  function cloudDeleted(parts, synced) { return Object.keys(synced).filter(k => parts[k] === undefined); }
+  // รวมรายชื่อบัญชี/ตัวละคร 2 ฝั่ง (ใช้ตอนเครื่องนี้แก้รายชื่อค้างอยู่ แล้วเครื่องอื่นก็แก้ด้วย): เอาของเครื่องนี้เป็นหลัก
+  // + เติมสิ่งที่มีแต่บนเน็ต "ที่เครื่องนี้ไม่เคยเห็น" (ถ้าเคยซิงก์แล้วแต่ไม่มีในเครื่อง = ผู้เล่นลบเอง ไม่เอากลับมา)
+  function mergeProfileLists(localRaw, cloudRaw, synced) {
+    const loc = sanitizeProfiles(localRaw), cl = sanitizeProfiles(cloudRaw);
+    for (const ca of cl.accounts) {
+      const la = findAccount(loc, ca.id);
+      if (!la) {
+        if (loc.accounts.length >= MAX_ACCOUNTS || ca.chars.some(c => synced[cloudCharKey(ca.id, c.id)] !== undefined)) continue;
+        if (loc.accounts.some(a => a.name.toLowerCase() === ca.name.toLowerCase())) continue;
+        loc.accounts.push({ id: ca.id, name: ca.name, chars: ca.chars.map(c => ({ id: c.id, name: c.name })), last: ca.last });
+        continue;
+      }
+      for (const cc of ca.chars) {
+        if (findChar(la, cc.id) || la.chars.length >= MAX_CHARS || synced[cloudCharKey(ca.id, cc.id)] !== undefined) continue;
+        if (la.chars.some(c => c.name.toLowerCase() === cc.name.toLowerCase())) continue;
+        la.chars.push({ id: cc.id, name: cc.name });
+      }
+    }
+    return loc;
+  }
+  // รวมของในเครื่องกับของบนเน็ต: แถวที่เครื่องแก้ไว้ยังไม่ส่ง (hash ไม่ตรงตอนซิงก์ล่าสุด) ใช้ของเครื่อง · นอกนั้นใช้ของเน็ต
+  // opt.keep = แถวที่ห้ามเอาของเน็ตมาทับ (ตัวละครที่กำลังเล่นอยู่)
+  // คืน { rows: ข้อมูลหลังรวม, taken: แถวที่ใช้ของเน็ต, removeCloud: แถวที่ผู้เล่นลบในเครื่องแล้ว ให้ลบบนเน็ตด้วย }
+  function cloudMerge(localParts, synced, cloudRows, opt) {
+    const keep = (opt && opt.keep) || [], h = cloudHashes(localParts), rows = {}, taken = [], removeCloud = [];
+    for (const k of Object.keys(localParts)) rows[k] = localParts[k];
+    for (const k of Object.keys(cloudRows)) {
+      const has = localParts[k] !== undefined;
+      if (!has && synced[k] !== undefined) { removeCloud.push(k); continue; }
+      if (has && keep.includes(k)) continue;
+      const edited = has && synced[k] !== undefined && synced[k] !== h[k];
+      if (k === CLOUD_PROFILES_KEY && edited) { rows[k] = mergeProfileLists(localParts[k], cloudRows[k], synced); continue; }
+      if (!edited) { rows[k] = cloudRows[k]; taken.push(k); }
+    }
+    return { rows, taken, removeCloud };
+  }
+
   // ---------- อัพสกิล ----------
   // แต้มสกิลมาจาก Job Level (0.9) ไม่ใช่เลเวลตัวละคร: Job Lv ละ 1 แต้ม (Job Lv 1 = 0 แต้ม) — คำนวณจากเลเวลเสมอ ไม่เก็บ
   function skillPointsEarned(jobLevel) { return Math.max(0, Math.floor(jobLevel) - 1); }
@@ -3506,6 +3558,7 @@ const Logic = (function () {
     mulberry32, createWorld, terrainAt, nearWater, serialize, deserialize,
     MAX_ACCOUNTS, MAX_CHARS, NAME_MAX, emptyProfiles, sanitizeProfiles, validateName, addAccount, addChar, removeChar, removeAccount,
     findAccount, findChar, charKey, migrateLegacy, peekSave,
+    CLOUD_PROFILES_KEY, cloudCharKey, cloudHash, cloudHashes, cloudDirty, cloudDeleted, mergeProfileLists, cloudMerge,
     WORLD_POS, WORLD_REGION, DIR_NAME, DIR_ARROW, warpDir, CHAT_MAX, CHAT_NPC_RANGE, ASSISTANT_NAME, isRefineMat, lootClass, lootNotable, sanitizeChat, parseChat, EMOTES, EMOTE_COOLDOWN, EMOTE_TIME, emoteById, emoteByCmd, npcReply, addressedToAssistant, assistantReply
   };
 })();
@@ -3519,6 +3572,8 @@ const Logic = (function () {
   const L = Logic;
   const KEY_SAVE = 'aetheria_save_v1', KEY_SET = 'aetheria_settings_v1';   // KEY_SAVE = เซฟเดี่ยวรุ่นก่อนมีบัญชี (อ่านเพื่อย้ายเท่านั้น ไม่เขียนทับ ไม่ลบ)
   const KEY_PROFILES = 'aetheria_profiles_v1';                              // รายชื่อบัญชี/ตัวละคร (เซฟของแต่ละตัวอยู่คีย์ L.charKey)
+  let NS = '';                                                              // 0.54: คำนำหน้าคีย์ในเครื่องของบัญชีออนไลน์ที่ล็อกอินอยู่ (กันเซฟคนละบัญชีปนกันเมื่อใช้เครื่องเดียวกัน)
+  const lsk = k => NS + k;
   const WORLD_SEED = 20261031;
   const SPEED = 150;
   const FONT = "'Inter','Anuphan','Sarabun','Noto Sans Thai','Tahoma',sans-serif";   // 0.49: ฟอนต์จาก Google Fonts (ไม่มีเน็ต = ตกไปใช้ Sarabun/ฟอนต์เครื่อง)
@@ -3572,32 +3627,30 @@ const Logic = (function () {
   // ---------- เซฟ / ตั้งค่า ----------
   function save() {
     if (!active) return;   // อยู่หน้าเลือกตัวละคร: ไม่มีอะไรให้เซฟ
-    try { localStorage.setItem(L.charKey(active.acc.id, active.ch.id), L.serialize(state)); }
+    try { localStorage.setItem(lsk(L.charKey(active.acc.id, active.ch.id)), L.serialize(state)); }
     catch (e) {
       if (!game.saveWarned) { game.saveWarned = true; addLog('⚠ บันทึกเกมไม่ได้ (เบราว์เซอร์ไม่อนุญาต) ความคืบหน้าจะหายเมื่อปิดหน้านี้'); }
     }
+    cloudTouch();
   }
   function saveProfiles() {
-    try { localStorage.setItem(KEY_PROFILES, JSON.stringify(profiles)); return true; }
+    cloudTouch();
+    try { localStorage.setItem(lsk(KEY_PROFILES), JSON.stringify(profiles)); return true; }
     catch (e) { game.saveWarned = true; return false; }
   }
   function loadProfiles() {
-    let text = null, legacy = null;
-    try { text = localStorage.getItem(KEY_PROFILES); legacy = localStorage.getItem(KEY_SAVE); }
+    let text = null;   // 0.54: อ่านสำเนาในเครื่องของบัญชีที่ล็อกอินอยู่ (ข้อมูลจริงอยู่บนเน็ต ดึงมารวมใน cloudRun)
+    try { text = localStorage.getItem(lsk(KEY_PROFILES)); }
     catch (e) { game.saveWarned = true; }
+    profiles = L.emptyProfiles();
     if (text) {
       try { profiles = L.sanitizeProfiles(JSON.parse(text)); }
-      catch (e) { try { localStorage.setItem(KEY_PROFILES + '_broken', text); } catch (e2) { /* ไม่เป็นไร */ } profiles = L.emptyProfiles(); }
+      catch (e) { try { localStorage.setItem(lsk(KEY_PROFILES) + '_broken', text); } catch (e2) { /* ไม่เป็นไร */ } profiles = L.emptyProfiles(); }
     }
-    const mg = L.migrateLegacy(profiles, !!legacy, Math.random);   // เซฟเดี่ยวรุ่นก่อน → บัญชี "ผู้เล่น" / ตัวละคร "ตัวละครแรก"
-    if (mg) {
-      try { localStorage.setItem(L.charKey(mg.accId, mg.charId), legacy); }
-      catch (e) { game.saveWarned = true; }
-    }
-    saveProfiles();
+    profiles.legacyDone = true;   // เซฟเดี่ยวรุ่นก่อนมีบัญชีไม่ย้ายอัตโนมัติอีก
   }
   function loadCharState(acc, ch) {
-    const key = L.charKey(acc.id, ch.id);
+    const key = lsk(L.charKey(acc.id, ch.id));
     let text = null;
     try { text = localStorage.getItem(key); }
     catch (e) { game.saveWarned = true; addLog('⚠ เบราว์เซอร์ไม่อนุญาตให้เก็บเซฟ เล่นได้แต่ความคืบหน้าจะไม่ถูกบันทึก'); }
@@ -3684,6 +3737,278 @@ const Logic = (function () {
   function itemName(id) { return L.ITEMS[id].name; }
   function eqName(id) { const r = state && state.player ? L.refineLevel(state.player, id) : 0; return (r ? '+' + r + ' ' : '') + L.ITEMS[id].name; }   // ชื่ออุปกรณ์พร้อมบวก (0.17)
 
+
+  // ---------- บัญชีออนไลน์ + เซฟขึ้นเน็ต (0.54) — Supabase ผ่าน fetch ตรง ๆ ไม่ใช้ไลบรารี/CDN ----------
+  // เล่นได้เฉพาะตอนล็อกอินแล้ว · ข้อมูลจริงอยู่บนเน็ต (ตาราง ae_saves) มีสำเนาในเครื่องไว้เล่นต่อตอนเน็ตหลุด แล้วส่งขึ้นเองเมื่อเน็ตกลับมา
+  // ข้อมูลที่ซิงก์: แถว 'profiles' (รายชื่อบัญชี/ตัวละครในเกม) + 'c:<บัญชี>_<ตัวละคร>' (เซฟตัวละครละแถว) — ตัวรวม/แบ่งแถวเป็นกติกาล้วนอยู่ใน Logic (cloudMerge ฯลฯ)
+  const SB_URL = 'https://cpxxgdsbyxvlwxcebxlb.supabase.co';
+  const SB_KEY = 'sb_publishable_LKeHRLjN5BZvGtwsrwmw3A_A12o-469';   // คีย์สาธารณะ ใส่ในหน้าเว็บได้ ความปลอดภัยอยู่ที่กฎของตาราง (RLS) ฝั่ง Supabase
+  const AUTH_KEY = 'aetheria_auth', SYNC_PREFIX = 'aetheria_sync_', IMPORT_PREFIX = 'aetheria_imported_';
+  const CLOUD = { on: false, session: null, status: 'login', msg: '', synced: {}, timer: 0, busy: false, again: false, lastRun: 0, pulled: false };
+  const auth = { mode: 'in', email: '', busy: false };
+  const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+  const lsPut = (k, v) => { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } };
+  const lsDel = k => { try { localStorage.removeItem(k); } catch (e) { /* ไม่เป็นไร */ } };
+  const syncKey = () => SYNC_PREFIX + CLOUD.session.uid;
+  function loadSynced() { try { return JSON.parse(lsGet(syncKey())) || {}; } catch (e) { return {}; } }
+  function saveSynced() { lsPut(syncKey(), JSON.stringify(CLOUD.synced)); }
+  function saveSession(j) {
+    CLOUD.session = { access: j.access_token, refresh: j.refresh_token, exp: Date.now() + (j.expires_in || 3600) * 1000, uid: j.user.id, email: j.user.email };
+    lsPut(AUTH_KEY, JSON.stringify(CLOUD.session));
+  }
+  function loadSession() {
+    try { const s = JSON.parse(lsGet(AUTH_KEY)); return s && s.access && s.refresh && s.uid ? s : null; } catch (e) { return null; }
+  }
+  async function sbFetch(path, opt) {
+    opt = opt || {};
+    const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 15000);
+    try {
+      const headers = Object.assign({ apikey: SB_KEY, 'Content-Type': 'application/json' }, opt.headers || {});
+      if (opt.token) headers.Authorization = 'Bearer ' + opt.token;
+      const r = await fetch(SB_URL + path, { method: opt.method || 'GET', headers, body: opt.body ? JSON.stringify(opt.body) : undefined, signal: ctl.signal });
+      const t = await r.text(); let j = null;
+      try { j = t ? JSON.parse(t) : null; } catch (e) { /* ไม่ใช่ JSON */ }
+      return { ok: r.ok, status: r.status, json: j };
+    } catch (e) { return { ok: false, status: 0, json: null, net: true }; }
+    finally { clearTimeout(to); }
+  }
+  function authErrText(r) {
+    if (r.net) return 'ต่ออินเทอร์เน็ตไม่ได้ ลองใหม่อีกครั้ง';
+    const j = r.json || {}, m = [j.msg, j.message, j.error_description, j.error, j.error_code].filter(Boolean).join(' ');
+    if (/invalid login|invalid_credentials/i.test(m)) return 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
+    if (/already registered|user_already_exists/i.test(m)) return 'อีเมลนี้สมัครไว้แล้ว กด "มีบัญชีแล้ว? เข้าสู่ระบบ" แทน';
+    if (/not confirmed|email_not_confirmed/i.test(m)) return 'ยังไม่ได้กดลิงก์ยืนยันในอีเมล เปิดอีเมล (ดูในจดหมายขยะด้วย) แล้วกดลิงก์ก่อน';
+    if (/weak_password|at least \d+ char|password should/i.test(m)) return 'รหัสผ่านสั้นหรือง่ายเกินไป (อย่างน้อย 6 ตัว)';
+    if (/rate limit|too many|over_.*rate/i.test(m) || r.status === 429) return 'ลองบ่อยเกินไป รอสักครู่แล้วลองใหม่';
+    if (/email_provider_disabled|signup_disabled|signups? (not allowed|disabled)/i.test(m)) return 'ระบบยังไม่เปิดให้สมัครด้วยอีเมล (ผู้ดูแลต้องเปิดที่ Supabase)';
+    if (/valid email|email_address_invalid/i.test(m)) return 'รูปแบบอีเมลไม่ถูกต้อง';
+    return 'ทำไม่สำเร็จ (' + (r.status || '?') + ') ' + m.slice(0, 90);
+  }
+  function cloudErr(r) {
+    if (r.net) return { text: 'ต่ออินเทอร์เน็ตไม่ได้' };
+    if (r.status === 401 || r.status === 403) { if (CLOUD.session) CLOUD.session.exp = 0; return { text: 'ต้องต่ออายุการเข้าสู่ระบบ จะลองใหม่เอง' }; }
+    const m = r.json && (r.json.message || r.json.hint) || '';
+    if (r.status === 404 || /ae_saves/.test(m)) return { text: 'ฐานข้อมูลยังไม่พร้อม (ไม่พบตาราง ae_saves) แจ้งผู้ดูแล' };
+    return { text: 'เซิร์ฟเวอร์ตอบผิดปกติ (' + r.status + ')' };
+  }
+  async function ensureToken() {
+    const s = CLOUD.session;
+    if (s.exp - Date.now() > 60000) return s.access;
+    const r = await sbFetch('/auth/v1/token?grant_type=refresh_token', { method: 'POST', body: { refresh_token: s.refresh } });
+    if (r.net) throw { text: 'ต่ออินเทอร์เน็ตไม่ได้' };
+    if (!r.ok || !r.json || !r.json.access_token) {
+      if (r.status === 400 || r.status === 401 || r.status === 403) throw { expired: true };
+      throw { text: 'ต่ออายุการเข้าสู่ระบบไม่ได้ (' + r.status + ')' };
+    }
+    saveSession(r.json);
+    return CLOUD.session.access;
+  }
+
+  // ---------- สถานะซิงก์ (หน้าจอห้ามเงียบ: บอกเสมอว่าบันทึกขึ้นเน็ตแล้วหรือยัง) ----------
+  function cloudLabel() {
+    const s = CLOUD.status;
+    return s === 'ok' ? '☁️ บันทึกขึ้นเน็ตแล้ว' : s === 'sending' ? '⏳ กำลังบันทึกขึ้นเน็ต…' : '⚠️ ยังส่งขึ้นเน็ตไม่ได้ (เก็บในเครื่องไว้ก่อน' + (CLOUD.msg ? ': ' + CLOUD.msg : '') + ')';
+  }
+  function paintCloud() {
+    $('ver').textContent = (game.verBase || '') + (CLOUD.on ? ' · ' + cloudLabel() : '');
+    document.querySelectorAll('.cloudchip').forEach(e => { e.textContent = (CLOUD.session ? '👤 ' + CLOUD.session.email + ' · ' : '') + cloudLabel(); });
+  }
+  function setCloud(status, msg) { CLOUD.status = status; CLOUD.msg = msg || ''; paintCloud(); }
+  function cloudLine() { const p = el('p', 'small cloudchip', ''); p.textContent = (CLOUD.session ? '👤 ' + CLOUD.session.email + ' · ' : '') + cloudLabel(); return p; }
+  function cloudTouch() {   // มีอะไรเปลี่ยน → ส่งขึ้นเน็ตหลังหยุดนิ่ง 4 วินาที (รวมหลายครั้งเป็นรอบเดียว)
+    if (!CLOUD.on) return;
+    setCloud('sending');
+    clearTimeout(CLOUD.timer);
+    CLOUD.timer = setTimeout(() => cloudRun({ pull: false }), 4000);
+  }
+
+  // ---------- รวมข้อมูลเน็ต ↔ เครื่อง ----------
+  function cloudParts() {
+    const parts = {}; parts[L.CLOUD_PROFILES_KEY] = profiles;
+    for (const a of profiles.accounts) for (const c of a.chars) {
+      const t = lsGet(lsk(L.charKey(a.id, c.id)));
+      if (t !== null) parts[L.cloudCharKey(a.id, c.id)] = t;
+    }
+    return parts;
+  }
+  // เจอตัวละครที่เคยเล่นไว้ในเครื่องก่อนมีระบบออนไลน์ (คีย์เดิมไม่มีคำนำหน้า) ในบัญชีใหม่ที่ยังว่าง → ถามก่อนโอนขึ้น
+  function offerImport() {
+    const flag = IMPORT_PREFIX + CLOUD.session.uid;
+    if (lsGet(flag) || profiles.accounts.length) return;
+    let old = null;
+    try { old = L.sanitizeProfiles(JSON.parse(lsGet(KEY_PROFILES))); } catch (e) { return; }
+    const n = old.accounts.reduce((s, a) => s + a.chars.length, 0);
+    if (!n) return;
+    lsPut(flag, '1');
+    if (!confirm('พบตัวละครที่เคยเล่นไว้ในเครื่องนี้ (' + n + ' ตัว)\nต้องการโอนขึ้นบัญชีออนไลน์นี้ไหม?\n\nตกลง = โอนขึ้นบัญชี · ยกเลิก = เริ่มใหม่ในบัญชีนี้ (ของเดิมในเครื่องยังไม่ถูกลบ)')) return;
+    profiles = old; profiles.legacyDone = true;
+    for (const a of old.accounts) for (const c of a.chars) { const t = lsGet(L.charKey(a.id, c.id)); if (t) lsPut(lsk(L.charKey(a.id, c.id)), t); }
+    saveProfiles();
+  }
+  function applyCloudRows(list, opt) {
+    const cloud = {};
+    list.forEach(x => { cloud[x.key] = x.data; });
+    if (opt.first && !Object.keys(cloud).length) offerImport();
+    const keep = (!opt.first && active) ? [L.cloudCharKey(active.acc.id, active.ch.id)] : [];   // ระหว่างเล่น ไม่เอาของเน็ตมาทับตัวละครที่กำลังเล่น
+    const mr = L.cloudMerge(cloudParts(), CLOUD.synced, cloud, { keep });
+    for (const k of mr.taken) {
+      if (k !== L.CLOUD_PROFILES_KEY && typeof mr.rows[k] === 'string') lsPut(lsk('aetheria_c_' + k.slice(2)), mr.rows[k]);
+    }
+    profiles = L.sanitizeProfiles(mr.rows[L.CLOUD_PROFILES_KEY]);
+    profiles.legacyDone = true;
+    lsPut(lsk(KEY_PROFILES), JSON.stringify(profiles));
+    if (active) {   // profiles เป็นก้อนใหม่ → ชี้ตัวละครที่กำลังเล่นไปที่ก้อนใหม่ (ถ้าถูกลบจากเครื่องอื่นก็เล่นต่อได้ตามเดิม)
+      const a = L.findAccount(profiles, active.acc.id), c = a && L.findChar(a, active.ch.id);
+      if (a && c) active = { acc: a, ch: c };
+    }
+    const h = L.cloudHashes(cloudParts());
+    mr.taken.forEach(k => { if (h[k] !== undefined) CLOUD.synced[k] = h[k]; });
+    saveSynced();
+  }
+  async function cloudPush(tok) {
+    const parts = cloudParts(), dirty = L.cloudDirty(parts, CLOUD.synced), del = L.cloudDeleted(parts, CLOUD.synced);
+    if (!dirty.length && !del.length) return;
+    const snap = L.cloudHashes(parts), now = new Date().toISOString(), uid = CLOUD.session.uid;
+    if (dirty.length) {
+      const body = dirty.map(k => ({ user_id: uid, key: k, data: parts[k], updated_at: now }));
+      const r = await sbFetch('/rest/v1/ae_saves?on_conflict=user_id,key', { method: 'POST', token: tok, headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body });
+      if (!r.ok) throw cloudErr(r);
+      dirty.forEach(k => { CLOUD.synced[k] = snap[k]; });
+      saveSynced();
+    }
+    for (const k of del) {
+      const r = await sbFetch('/rest/v1/ae_saves?user_id=eq.' + uid + '&key=eq.' + encodeURIComponent(k), { method: 'DELETE', token: tok });
+      if (!r.ok) throw cloudErr(r);
+      delete CLOUD.synced[k];
+      saveSynced();
+    }
+  }
+  // ซิงก์: ดึงของเน็ต (ถ้า pull) แล้วส่งสิ่งที่เปลี่ยนขึ้นไป · ห้ามส่งก่อนดึงสำเร็จอย่างน้อยหนึ่งครั้ง (กันข้อมูลเริ่มต้นไปทับของจริงบนเน็ต)
+  async function cloudRun(opt) {
+    opt = opt || {};
+    if (!CLOUD.on || !CLOUD.session) return;
+    if (CLOUD.busy) { CLOUD.again = true; return; }
+    CLOUD.busy = true; CLOUD.lastRun = Date.now(); setCloud('sending');
+    try {
+      const tok = await ensureToken();
+      if (opt.pull !== false || !CLOUD.pulled) {
+        const r = await sbFetch('/rest/v1/ae_saves?select=key,data', { token: tok });
+        if (!r.ok) throw cloudErr(r);
+        applyCloudRows(r.json || [], { first: !!opt.first });
+        CLOUD.pulled = true;
+      }
+      await cloudPush(await ensureToken());
+      setCloud('ok');
+    } catch (e) {
+      if (e && e.expired) { lsDel(AUTH_KEY); CLOUD.session = null; toLogin('การเข้าสู่ระบบหมดอายุ กรุณาเข้าสู่ระบบอีกครั้ง (ข้อมูลที่ยังไม่ได้ส่งยังเก็บอยู่ในเครื่อง จะส่งต่อให้หลังเข้าสู่ระบบด้วยอีเมลเดิม)'); }
+      else setCloud('offline', e && e.text || 'เกิดข้อผิดพลาด');
+    } finally {
+      CLOUD.busy = false;
+      if (CLOUD.again) { CLOUD.again = false; clearTimeout(CLOUD.timer); CLOUD.timer = setTimeout(() => cloudRun({ pull: false }), 300); }
+    }
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (!CLOUD.on) return;
+    if (document.hidden) { clearTimeout(CLOUD.timer); cloudRun({ pull: false }); }                 // ปิดหน้า/สลับแท็บ: รีบส่งที่ค้าง
+    else if (Date.now() - CLOUD.lastRun > 60000) cloudRun({});                                      // กลับมา: ดึงของใหม่จากเครื่องอื่น
+  });
+  window.addEventListener('online', () => cloudRun({}));
+  setInterval(() => { if (CLOUD.on && !CLOUD.busy && CLOUD.status === 'offline') cloudRun({ pull: false }); }, 20000);
+
+  // ---------- หน้าล็อกอิน / สมัคร / ออกจากระบบ ----------
+  function openLogin(note) {
+    document.body.classList.add('intitle');
+    const up = auth.mode === 'up', body = el('div');
+    body.appendChild(el('p', null, up ? 'สมัครสมาชิกใหม่ — เราจะส่งอีเมลยืนยันให้ กดลิงก์ในอีเมลก่อน แล้วค่อยเข้าสู่ระบบ' : 'เข้าสู่ระบบเพื่อเล่น Aetheria — ตัวละครเก็บบนเน็ต เล่นต่อได้ทุกเครื่อง'));
+    const mkInput = (type, ph, label, ac) => { const i = el('input', 'txt'); i.type = type; i.placeholder = ph; i.autocomplete = ac; i.setAttribute('aria-label', label); i.style.marginBottom = '6px'; return i; };
+    const em = mkInput('email', 'อีเมล', 'อีเมล', 'email'), pw = mkInput('password', 'รหัสผ่าน (อย่างน้อย 6 ตัว)', 'รหัสผ่าน', up ? 'new-password' : 'current-password');
+    const pw2 = up ? mkInput('password', 'พิมพ์รหัสผ่านอีกครั้ง', 'ยืนยันรหัสผ่าน', 'new-password') : null;
+    em.value = auth.email;
+    const msg = el('p', 'formerr', note || '');
+    body.appendChild(em); body.appendChild(pw); if (pw2) body.appendChild(pw2); body.appendChild(msg);
+    const say = t => { msg.textContent = t; };
+    const submit = async () => {
+      if (auth.busy) return;
+      const email = em.value.trim(), pass = pw.value;
+      auth.email = email;
+      if (!/^\S+@\S+\.\S+$/.test(email)) return say('⚠ กรอกอีเมลให้ถูกต้อง');
+      if (pass.length < 6) return say('⚠ รหัสผ่านต้องมีอย่างน้อย 6 ตัว');
+      if (up && pass !== pw2.value) return say('⚠ รหัสผ่านสองช่องไม่ตรงกัน');
+      auth.busy = true; say('⏳ กำลังติดต่อเซิร์ฟเวอร์…');
+      const r = await sbFetch(up ? '/auth/v1/signup' : '/auth/v1/token?grant_type=password', { method: 'POST', body: { email, password: pass } });
+      auth.busy = false;
+      if (!r.ok) return say('⚠ ' + authErrText(r));
+      if (!r.json || !r.json.access_token) {   // เปิดยืนยันอีเมลไว้: สมัครแล้วยังไม่มี session
+        auth.mode = 'in';
+        return openLogin('✅ สมัครแล้ว! ส่งอีเมลยืนยันไปที่ ' + email + ' แล้ว เปิดอีเมล (ดูในจดหมายขยะด้วย) กดลิงก์ยืนยัน จากนั้นกลับมาเข้าสู่ระบบที่หน้านี้');
+      }
+      saveSession(r.json);
+      enterCloud();
+    };
+    for (const i of [em, pw, pw2]) if (i) i.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); submit(); } });
+    openModal(up ? 'สมัครสมาชิก' : 'เข้าสู่ระบบ', body, [
+      { label: up ? 'สมัครสมาชิก' : 'เข้าสู่ระบบ', cls: 'main', onClick: submit },
+      { label: up ? 'มีบัญชีแล้ว? เข้าสู่ระบบ' : 'ยังไม่มีบัญชี? สมัครสมาชิก', onClick: () => { auth.email = em.value.trim(); auth.mode = up ? 'in' : 'up'; openLogin(); } }
+    ], 'title');
+    setTimeout(() => em.focus(), 0);
+  }
+  // เข้าสู่ระบบสำเร็จ: เปลี่ยนไปใช้ที่เก็บในเครื่องของบัญชีนี้ → ดึงของจากเน็ต → ขึ้นหน้าเลือกบัญชี/ตัวละคร
+  async function enterCloud() {
+    NS = 'u_' + CLOUD.session.uid + '_';
+    CLOUD.on = true; CLOUD.synced = loadSynced(); CLOUD.pulled = false; CLOUD.status = 'sending';
+    loadProfiles();
+    document.body.classList.add('intitle');
+    openModal('กำลังโหลด', '<p>☁️ กำลังโหลดตัวละครของคุณจากเน็ต…</p>', [], 'title');
+    paintCloud();
+    await cloudRun({ first: true });
+    if (!CLOUD.session) return;   // ถูกเด้งกลับไปหน้าล็อกอิน (เซสชันหมดอายุ)
+    if (!CLOUD.pulled && !profiles.accounts.length) {   // ยังไม่เคยดึงสำเร็จและในเครื่องก็ว่าง: ห้ามเริ่มสร้างใหม่ (กลัวไปทับของจริงบนเน็ต) ให้ลองใหม่
+      openModal('โหลดข้อมูลไม่ได้', '<p>⚠ ' + cloudLabel() + '</p><p>ต้องต่ออินเทอร์เน็ตเพื่อโหลดตัวละครของคุณก่อน</p>', [
+        { label: '🔁 ลองใหม่', cls: 'main', onClick: enterCloud },
+        { label: '🚪 ออกจากระบบ', onClick: () => logout(true) }
+      ], 'title');
+      return;
+    }
+    startTitle();
+  }
+  function toLogin(note) {
+    clearTimeout(CLOUD.timer);
+    CLOUD.on = false; CLOUD.session = null; CLOUD.pulled = false; NS = '';
+    profiles = L.emptyProfiles();
+    if (active) { active = null; state = L.newGameState(); setAuto(false, ''); enterMap(state.player.map); game.deadT = 0; game.combatT = 0; rt.cd = {}; }
+    game.verBase = 'Aetheria v' + L.VERSION; paintCloud();
+    auth.mode = 'in';
+    openLogin(note || '');
+  }
+  async function logout(force) {
+    if (!force && CLOUD.status !== 'ok' && !confirm('ยังมีข้อมูลที่ส่งขึ้นเน็ตไม่ได้ (เก็บในเครื่องนี้ไว้ก่อน)\nออกจากระบบตอนนี้ได้ ข้อมูลจะไม่หาย — เข้าสู่ระบบด้วยอีเมลเดิมในเครื่องนี้อีกครั้ง ระบบจะส่งต่อให้\n\nออกจากระบบเลยไหม?')) return;
+    if (active) save();
+    openModal('กำลังออกจากระบบ', '<p>⏳ กำลังบันทึกข้อมูลขึ้นเน็ต…</p>', [], 'title');
+    clearTimeout(CLOUD.timer);
+    if (CLOUD.busy) await new Promise(r => setTimeout(r, 1500));
+    await cloudRun({ pull: false });
+    lsDel(AUTH_KEY);
+    toLogin('ออกจากระบบแล้ว');
+  }
+  // เริ่มเกม: มี session เดิม = เข้าเลย · กลับมาจากลิงก์ยืนยันอีเมล (token ใน # ของ URL) = ล็อกอินให้ · ไม่มี = หน้าล็อกอิน
+  async function startOnline() {
+    game.verBase = 'Aetheria v' + L.VERSION; paintCloud();
+    document.body.classList.add('intitle');
+    openModal('Aetheria', '<p>⏳ กำลังเริ่มเกม…</p>', [], 'title');
+    let note = '';
+    const h = (location.hash || '').replace(/^#/, '');
+    if (h.indexOf('access_token=') >= 0 || h.indexOf('error_description=') >= 0) {
+      const q = new URLSearchParams(h);
+      try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* ไม่เป็นไร */ }
+      if (q.get('access_token') && q.get('refresh_token')) {
+        const r = await sbFetch('/auth/v1/user', { token: q.get('access_token') });
+        if (r.ok && r.json && r.json.id) saveSession({ access_token: q.get('access_token'), refresh_token: q.get('refresh_token'), expires_in: Number(q.get('expires_in')) || 3600, user: { id: r.json.id, email: r.json.email } });
+        else note = 'ยืนยันอีเมลไม่สำเร็จ ลองเข้าสู่ระบบด้วยอีเมลและรหัสผ่านที่สมัครไว้';
+      } else if (q.get('error_description')) note = 'ลิงก์ยืนยันอีเมลใช้ไม่ได้หรือหมดอายุ — ลองเข้าสู่ระบบ หรือสมัครใหม่อีกครั้ง';
+    }
+    if (!CLOUD.session) CLOUD.session = loadSession();
+    if (CLOUD.session) enterCloud(); else openLogin(note);
+  }
   // ---------- หน้าต่างโต้ตอบ ----------
   function el(tag, cls, text) {
     const e = document.createElement(tag);
@@ -3794,6 +4119,7 @@ const Logic = (function () {
       { label: '▶ เล่นต่อ', cls: 'main', onClick: closeModal },
       { label: '👥 เปลี่ยนตัวละคร', onClick: () => leaveToSelect(false) },
       { label: '🔄 สลับบัญชี', onClick: () => leaveToSelect(true) },
+      { label: '🚪 ออกจากระบบ', onClick: () => logout() },
       { label: '↺ เริ่มตัวละครนี้ใหม่', cls: 'warn', onClick: restartGame }
     ], 'pause');
   }
@@ -3822,7 +4148,7 @@ const Logic = (function () {
     enterMap(state.player.map);
     game.deadT = 0; game.combatT = 0; rt.cd = {}; rt.face = 1;
     document.body.classList.remove('intitle');
-    $('ver').textContent = '👤 ' + ch.name + ' · v' + L.VERSION;
+    game.verBase = '👤 ' + ch.name + ' · v' + L.VERSION; paintCloud();
     closeModal();
     addLog('ยินดีต้อนรับ ' + ch.name + '!');
     addLog('คลิก/แตะพื้นเพื่อเดิน · คลิก/แตะมอนสเตอร์เพื่อโจมตี · ปุ่ม 🤖 ออโต้ล่ามอนสเตอร์ · ถึง Lv 10 ไปเปลี่ยนอาชีพที่ครูฝึกไลล่า');
@@ -3878,7 +4204,7 @@ const Logic = (function () {
       v => {
         const r = L.addChar(profiles, acc.id, v, Math.random);
         if (!r.ok) return r.msg;
-        try { localStorage.setItem(L.charKey(acc.id, r.ch.id), L.serialize(L.newGameState())); } catch (e) { game.saveWarned = true; }
+        try { localStorage.setItem(lsk(L.charKey(acc.id, r.ch.id)), L.serialize(L.newGameState())); } catch (e) { game.saveWarned = true; }
         saveProfiles();
         enterCharacter(acc, r.ch);
         return null;
@@ -3887,7 +4213,8 @@ const Logic = (function () {
   function openAccounts() {
     if (!profiles.accounts.length) { openCreateAccount(false); return; }
     const body = el('div');
-    body.appendChild(el('p', null, 'เลือกบัญชีของคุณ (บัญชีเก็บอยู่ในเครื่อง/เบราว์เซอร์นี้)'));
+    body.appendChild(el('p', null, 'เลือกบัญชีในเกมของคุณ (เก็บไว้บนเน็ตภายใต้อีเมลที่ล็อกอิน)'));
+    body.appendChild(cloudLine());
     if (game.saveWarned) body.appendChild(el('p', 'formerr', '⚠ เบราว์เซอร์ไม่อนุญาตให้เก็บข้อมูล เล่นได้แต่ความคืบหน้าจะหายเมื่อปิดหน้านี้'));
     for (const acc of profiles.accounts) {
       body.appendChild(rowEl('👤 ' + acc.name, 'ตัวละคร ' + acc.chars.length + '/' + L.MAX_CHARS + ' ตัว', [
@@ -3895,11 +4222,11 @@ const Logic = (function () {
         { label: '🗑', cls: 'warn', onClick: () => deleteAccount(acc) }
       ]));
     }
-    openModal('เลือกบัญชี', body, [{ label: '＋ สร้างบัญชีใหม่', cls: 'main', onClick: () => openCreateAccount(true) }], 'title');
+    openModal('เลือกบัญชี', body, [{ label: '＋ สร้างบัญชีใหม่', cls: 'main', onClick: () => openCreateAccount(true) }, { label: '🚪 ออกจากระบบ', onClick: () => logout() }], 'title');
   }
   function charInfo(acc, ch) {
     let text = null;
-    try { text = localStorage.getItem(L.charKey(acc.id, ch.id)); } catch (e) { /* ไม่เป็นไร */ }
+    try { text = localStorage.getItem(lsk(L.charKey(acc.id, ch.id))); } catch (e) { /* ไม่เป็นไร */ }
     const s = text ? L.deserialize(text) : null;
     if (!s) return { player: L.newPlayer(), line: text ? '⚠ เซฟเสียหาย' : 'ตัวละครใหม่' };
     return { player: s.player, line: 'Lv ' + s.player.level + ' ' + L.JOBS[s.player.job].name + ' · ' + L.MAPS[s.player.map].name };
@@ -3908,6 +4235,7 @@ const Logic = (function () {
     profiles.last = acc.id; saveProfiles();
     const body = el('div');
     body.appendChild(el('p', null, '👤 บัญชี ' + acc.name + ' — เลือกตัวละครที่จะเล่น (สร้างได้ ' + L.MAX_CHARS + ' ตัว)'));
+    body.appendChild(cloudLine());
     if (game.saveWarned) body.appendChild(el('p', 'formerr', '⚠ เบราว์เซอร์ไม่อนุญาตให้เก็บข้อมูล เล่นได้แต่ความคืบหน้าจะหายเมื่อปิดหน้านี้'));
     const grid = el('div', 'chargrid'), previews = [];
     for (const ch of acc.chars) {
@@ -3927,18 +4255,18 @@ const Logic = (function () {
       slot.type = 'button'; slot.addEventListener('click', () => openCreateChar(acc)); grid.appendChild(slot);
     }
     body.appendChild(grid);
-    openModal('เลือกตัวละคร', body, [{ label: '🔄 สลับบัญชี', onClick: openAccounts }], 'title-wide');
+    openModal('เลือกตัวละคร', body, [{ label: '🔄 สลับบัญชี', onClick: openAccounts }, { label: '🚪 ออกจากระบบ', onClick: () => logout() }], 'title-wide');
     for (const [cv, p] of previews) startPreview(cv, p);
   }
   function deleteChar(acc, ch) {
     if (!confirm('ลบตัวละคร “' + ch.name + '” ?\nเลเวล ของ และเควสทั้งหมดของตัวละครนี้จะหายไป (กู้คืนไม่ได้)')) return;
-    if (L.removeChar(profiles, acc.id, ch.id)) { try { localStorage.removeItem(L.charKey(acc.id, ch.id)); } catch (e) { /* ไม่เป็นไร */ } saveProfiles(); }
+    if (L.removeChar(profiles, acc.id, ch.id)) { try { localStorage.removeItem(lsk(L.charKey(acc.id, ch.id))); } catch (e) { /* ไม่เป็นไร */ } saveProfiles(); }
     openChars(acc);
   }
   function deleteAccount(acc) {
     if (!confirm('ลบบัญชี “' + acc.name + '” พร้อมตัวละครทั้ง ' + acc.chars.length + ' ตัว?\nทุกอย่างในบัญชีนี้จะหายไป (กู้คืนไม่ได้)')) return;
     const ids = L.removeAccount(profiles, acc.id);
-    if (ids) { for (const id of ids) { try { localStorage.removeItem(L.charKey(acc.id, id)); } catch (e) { /* ไม่เป็นไร */ } } saveProfiles(); }
+    if (ids) { for (const id of ids) { try { localStorage.removeItem(lsk(L.charKey(acc.id, id))); } catch (e) { /* ไม่เป็นไร */ } } saveProfiles(); }
     openAccounts();
   }
 
@@ -9284,7 +9612,6 @@ const Logic = (function () {
 
   // ---------- เริ่มเกม ----------
   loadSettings();
-  loadProfiles();
   state = L.newGameState();   // ตัวสมมติหลังฉากหน้าเลือกตัวละคร — ยังไม่ผูกกับตัวละครใด (active = null จึงไม่เซฟ)
   world = L.createWorld(state.player.map, WORLD_SEED);
   $('ver').textContent = 'Aetheria v' + L.VERSION;
@@ -9293,7 +9620,7 @@ const Logic = (function () {
   resize();
   init3d();
   if (v3.ok) resize();
-  startTitle();   // ขึ้นหน้าเลือกบัญชี/ตัวละครก่อน แล้วค่อยเริ่มเล่นตอนเลือกตัวละคร (enterCharacter)
+  startOnline();   // 0.54: ต้องล็อกอินก่อน → ดึงตัวละครจากเน็ต → หน้าเลือกบัญชี/ตัวละคร (startTitle) แล้วค่อยเริ่มเล่นตอนเลือกตัวละคร (enterCharacter)
 
   let last = performance.now();
   function frame(now) {
@@ -9320,7 +9647,7 @@ const Logic = (function () {
   }, 250);
 
   // ช่องทางให้ตัวตรวจสอบอัตโนมัติเรียกดูสถานะ (ไม่มีผลกับผู้เล่น)
-  window.__aetheria = { L, sendEmote, openEmotes, life, react, playerHurt, state: () => state, world: () => world, rt, game, enterMap, talkTo, openBag, settings: () => settings, toggleAuto, openAuto, openCardBook, openStatus, openChar, ui, profiles: () => profiles, active: () => active, enterCharacter, leaveToSelect, openAccounts, openChars, v3, proj, pxPerUnit, screenToWorld, computePose, pv };
+  window.__aetheria = { L, sendEmote, openEmotes, life, react, playerHurt, state: () => state, world: () => world, rt, game, enterMap, talkTo, openBag, settings: () => settings, toggleAuto, openAuto, openCardBook, openStatus, openChar, ui, profiles: () => profiles, active: () => active, CLOUD, cloudRun, logout, enterCharacter, leaveToSelect, openAccounts, openChars, v3, proj, pxPerUnit, screenToWorld, computePose, pv };
 })();
 </script>
 </body>
