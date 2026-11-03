@@ -309,7 +309,7 @@ noscript{position:fixed;inset:0;display:flex;align-items:center;justify-content:
 // =====================================================================
 const Logic = (function () {
   'use strict';
-  const VERSION = '0.55.1';
+  const VERSION = '0.57.0';
   const SAVE_VERSION = 4;
   const MAX_LEVEL = 150;   // 0.13: ขยายจาก 50 เป็น 99 · 0.16: ขยายเป็น 120 · 0.33: ขยายเป็น 150
   const MAP_W = 1600, MAP_H = 1200;
@@ -2381,13 +2381,13 @@ const Logic = (function () {
       if (!la) {
         if (loc.accounts.length >= MAX_ACCOUNTS || ca.chars.some(c => synced[cloudCharKey(ca.id, c.id)] !== undefined)) continue;
         if (loc.accounts.some(a => a.name.toLowerCase() === ca.name.toLowerCase())) continue;
-        loc.accounts.push({ id: ca.id, name: ca.name, chars: ca.chars.map(c => ({ id: c.id, name: c.name })), last: ca.last });
+        loc.accounts.push({ id: ca.id, name: ca.name, chars: ca.chars.map(c => Object.assign({}, c)), last: ca.last });
         continue;
       }
       for (const cc of ca.chars) {
         if (findChar(la, cc.id) || la.chars.length >= MAX_CHARS || synced[cloudCharKey(ca.id, cc.id)] !== undefined) continue;
         if (la.chars.some(c => c.name.toLowerCase() === cc.name.toLowerCase())) continue;
-        la.chars.push({ id: cc.id, name: cc.name });
+        la.chars.push(Object.assign({}, cc));
       }
     }
     return loc;
@@ -2448,13 +2448,13 @@ const Logic = (function () {
         if (typeof id === 'string' && ITEMS[id] && ITEMS[id].type === 'equip' && slotAccepts(slot, ITEMS[id].slot)) equip[slot] = id;
       }
     }
-    return { id: raw.id, name: nm.name, job: raw.job, level: Math.floor(lv), x, y, face: raw.face === -1 ? -1 : 1, mv: raw.mv === true, equip };
+    return { id: raw.id, name: nm.name, job: raw.job, level: Math.floor(lv), x, y, face: raw.face === -1 ? -1 : 1, mv: raw.mv === true, equip, look: sanitizeLook(raw.look) };
   }
   // ข้อมูลตำแหน่ง/หน้าตาของตัวเองที่จะส่งออก (ตัวเล็กที่สุดเท่าที่พอ)
-  function peerPacket(id, name, p, face, moving) {
+  function peerPacket(id, name, p, face, moving, look) {
     const equip = {};
     for (const k of EQUIP_SLOT_KEYS) if (p.equip && p.equip[k]) equip[k] = p.equip[k];
-    return { id, name, job: p.job, level: p.level, x: Math.round(p.x), y: Math.round(p.y), face: face === -1 ? -1 : 1, mv: !!moving, equip };
+    return { id, name, job: p.job, level: p.level, x: Math.round(p.x), y: Math.round(p.y), face: face === -1 ? -1 : 1, mv: !!moving, equip, look: sanitizeLook(look) };
   }
   // ข้อความแชท/อีโมตจากผู้เล่นอื่น: คืน { text } หรือ { emote } หรือ null
   function sanitizePeerSay(raw) {
@@ -2469,6 +2469,24 @@ const Logic = (function () {
     const x = far ? target.x : shown.x + dx * k, y = far ? target.y : shown.y + dy * k;
     return { x, y, moving: Math.hypot(target.x - x, target.y - y) > 1.2 };
   }
+
+
+  // ---------- หน้าตาตัวละครที่ผู้เล่นเลือกเอง (0.56) — เก็บเป็นลำดับของสี (index) ไม่เก็บค่าสีตรง ๆ จึงรับค่าแปลกปลอมไม่ได้ ----------
+  // ไม่มี look = ใช้สีผมประจำอาชีพและสีผิว/สีตาเดิมของเกม (ตัวละครเก่าหน้าตาไม่เปลี่ยน)
+  const LOOKS = {
+    hair: ['#2b2230', '#5a3a1e', '#a8703d', '#d9aa55', '#c0392b', '#e07aa8', '#7b6bd6', '#4aa6c8', '#3f9a62', '#e8e8f0'],
+    eye: ['#3a2a22', '#3b6fd0', '#2f9a62', '#8a4cc0', '#d0503b', '#d6a02a', '#3aa6b8', '#6a6a78'],
+    skin: ['#fbe3cc', '#f6d9b8', '#e8be93', '#d19a6b', '#a8744a', '#7a4e32']
+  };
+  const LOOK_NAMES = { hair: ['ดำ', 'น้ำตาลเข้ม', 'น้ำตาล', 'ทอง', 'แดง', 'ชมพู', 'ม่วง', 'ฟ้า', 'เขียว', 'ขาวเงิน'], eye: ['น้ำตาล', 'น้ำเงิน', 'เขียว', 'ม่วง', 'แดง', 'เหลืองทอง', 'ฟ้าอมเขียว', 'เทา'], skin: ['ขาวใส', 'ขาวเหลือง', 'ผิวสองสี', 'แทน', 'น้ำตาล', 'น้ำตาลเข้ม'] };
+  // คืน { h, e, s } (ลำดับสี ช่องที่ไม่ถูกต้องใช้ -1 = ใช้ค่าเดิมของเกม) หรือ null ถ้าไม่ได้เลือกอะไรเลย
+  function sanitizeLook(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    const pick = (v, n) => (Number.isInteger(v) && v >= 0 && v < n) ? v : -1;
+    const o = { h: pick(raw.h, LOOKS.hair.length), e: pick(raw.e, LOOKS.eye.length), s: pick(raw.s, LOOKS.skin.length) };
+    return (o.h < 0 && o.e < 0 && o.s < 0) ? null : o;
+  }
+  function lookColors(look) { const l = sanitizeLook(look); return l ? { hair: l.h >= 0 ? LOOKS.hair[l.h] : null, eye: l.e >= 0 ? LOOKS.eye[l.e] : null, skin: l.s >= 0 ? LOOKS.skin[l.s] : null } : null; }
 
   // ---------- อัพสกิล ----------
   // แต้มสกิลมาจาก Job Level (0.9) ไม่ใช่เลเวลตัวละคร: Job Lv ละ 1 แต้ม (Job Lv 1 = 0 แต้ม) — คำนวณจากเลเวลเสมอ ไม่เก็บ
@@ -3411,7 +3429,7 @@ const Logic = (function () {
         if (acc.chars.length >= MAX_CHARS || !c || typeof c !== 'object') continue;
         const cn = validateName(c.name);
         if (!cn.ok || typeof c.id !== 'string' || !ID_RE.test(c.id) || acc.chars.some(x => x.id === c.id || sameName(x.name, cn.name))) continue;
-        acc.chars.push({ id: c.id, name: cn.name });
+        const lk = sanitizeLook(c.look); acc.chars.push(lk ? { id: c.id, name: cn.name, look: lk } : { id: c.id, name: cn.name });
       }
       acc.last = acc.chars.some(c => c.id === a.last) ? a.last : (acc.chars[0] ? acc.chars[0].id : null);
       pr.accounts.push(acc);
@@ -3428,14 +3446,14 @@ const Logic = (function () {
     pr.accounts.push(acc); pr.last = acc.id;
     return { ok: true, acc };
   }
-  function addChar(pr, accId, rawName, rng) {
+  function addChar(pr, accId, rawName, rng, look) {
     const acc = findAccount(pr, accId);
     if (!acc) return { ok: false, msg: 'ไม่พบบัญชี' };
     const v = validateName(rawName);
     if (!v.ok) return v;
     if (acc.chars.length >= MAX_CHARS) return { ok: false, msg: 'สร้างตัวละครได้ไม่เกิน ' + MAX_CHARS + ' ตัวต่อบัญชี' };
     if (acc.chars.some(c => sameName(c.name, v.name))) return { ok: false, msg: 'มีตัวละครชื่อนี้ในบัญชีแล้ว' };
-    const ch = { id: uniqueId(rng, acc.chars.map(c => c.id)), name: v.name };
+    const ch = { id: uniqueId(rng, acc.chars.map(c => c.id)), name: v.name }, lk = sanitizeLook(look); if (lk) ch.look = lk;
     acc.chars.push(ch); acc.last = ch.id;
     return { ok: true, ch };
   }
@@ -3619,7 +3637,7 @@ const Logic = (function () {
     mulberry32, createWorld, terrainAt, nearWater, serialize, deserialize,
     MAX_ACCOUNTS, MAX_CHARS, NAME_MAX, emptyProfiles, sanitizeProfiles, validateName, addAccount, addChar, removeChar, removeAccount,
     findAccount, findChar, charKey, migrateLegacy, peekSave,
-    CLOUD_PROFILES_KEY, cloudCharKey, cloudHash, cloudHashes, cloudDirty, cloudDeleted, mergeProfileLists, cloudMerge, saveProgress, compareProgress,
+    CLOUD_PROFILES_KEY, cloudCharKey, cloudHash, cloudHashes, cloudDirty, cloudDeleted, mergeProfileLists, cloudMerge, saveProgress, compareProgress, LOOKS, LOOK_NAMES, sanitizeLook, lookColors,
     PEER_SEND_INTERVAL, PEER_KEEPALIVE, PEER_TIMEOUT, PEER_MAX, peerChannel, sanitizePeer, peerPacket, sanitizePeerSay, peerStep,
     WORLD_POS, WORLD_REGION, DIR_NAME, DIR_ARROW, warpDir, CHAT_MAX, CHAT_NPC_RANGE, ASSISTANT_NAME, isRefineMat, lootClass, lootNotable, sanitizeChat, parseChat, EMOTES, EMOTE_COOLDOWN, EMOTE_TIME, emoteById, emoteByCmd, npcReply, addressedToAssistant, assistantReply
   };
@@ -4173,7 +4191,7 @@ const Logic = (function () {
       paintCloud();
     }
     e.name = q.name; e.job = q.job; e.level = q.level; e.face = q.face; e.mv = q.mv; e.tx = q.x; e.ty = q.y; e.seen = 0;
-    e.p.job = q.job; e.p.level = q.level; e.p.equip = q.equip; e.p.map = state.player.map;
+    e.p.look = q.look; e.p.job = q.job; e.p.level = q.level; e.p.equip = q.equip; e.p.map = state.player.map;
   }
   function mpGotSay(raw) {
     const s = L.sanitizePeerSay(raw), e = s && MP.peers[s.id];
@@ -4209,7 +4227,7 @@ const Logic = (function () {
     const changed = Math.abs(p.x - MP.lastX) + Math.abs(p.y - MP.lastY) > 1 || rt.face !== MP.lastFace || !!rt.moving !== MP.lastMv;
     if ((changed && MP.sendT >= L.PEER_SEND_INTERVAL) || MP.quietT >= L.PEER_KEEPALIVE) {
       MP.sendT = 0; MP.quietT = 0; MP.lastX = p.x; MP.lastY = p.y; MP.lastFace = rt.face; MP.lastMv = !!rt.moving;
-      mpSend('pos', L.peerPacket(mpMyId(), chatName(), p, rt.face, rt.moving));
+      mpSend('pos', L.peerPacket(mpMyId(), chatName(), p, rt.face, rt.moving, active.ch.look));
     }
   }
   // วาดตัวละครคนอื่นด้วยโค้ดวาดตัวละครเดียวกับของเรา (ยืมสถานะกลางของ rt/life/pv ชั่วคราวแล้วคืนให้ครบ)
@@ -4420,16 +4438,42 @@ const Logic = (function () {
         return null;
       }, canBack ? openAccounts : null);
   }
+  // สร้างตัวละคร: พิมพ์ชื่อ + เลือกสีผม/สีตา/สีผิว (0.56) มีตัวอย่างให้ดูสด ๆ · ไม่เลือก = สีเดิมของเกม
   function openCreateChar(acc) {
-    nameForm('สร้างตัวละคร', 'ตั้งชื่อตัวละคร (ไม่เกิน ' + L.NAME_MAX + ' ตัวอักษร) — เริ่มเป็นผู้เริ่มต้น ถึง Lv 10 เลือกอาชีพได้', 'ชื่อตัวละคร',
-      v => {
-        const r = L.addChar(profiles, acc.id, v, Math.random);
-        if (!r.ok) return r.msg;
-        try { localStorage.setItem(lsk(L.charKey(acc.id, r.ch.id)), L.serialize(L.newGameState())); } catch (e) { game.saveWarned = true; }
-        saveProfiles();
-        enterCharacter(acc, r.ch);
-        return null;
-      }, () => openChars(acc));
+    const body = el('div'), look = { h: -1, e: -1, s: -1 }, pvp = Object.assign(L.newPlayer(), { look: null });
+    body.appendChild(el('p', null, 'ตั้งชื่อตัวละคร (ไม่เกิน ' + L.NAME_MAX + ' ตัวอักษร) แล้วเลือกหน้าตา — เริ่มเป็นผู้เริ่มต้น ถึง Lv 10 เลือกอาชีพได้'));
+    const cv = el('canvas'); cv.style.cssText = 'display:block;margin:0 auto;max-width:100%'; body.appendChild(cv);
+    const inp = el('input', 'txt'); inp.type = 'text'; inp.maxLength = L.NAME_MAX; inp.placeholder = 'ชื่อตัวละคร'; inp.autocomplete = 'off'; inp.setAttribute('aria-label', 'ชื่อตัวละคร');
+    const err = el('p', 'formerr', '');
+    const refresh = () => { pvp.look = (look.h < 0 && look.e < 0 && look.s < 0) ? null : { h: look.h, e: look.e, s: look.s }; };
+    const rows = [['h', 'hair', 'สีผม'], ['e', 'eye', 'สีตา'], ['s', 'skin', 'สีผิว']];
+    for (const [k, kind, title] of rows) {
+      const row = el('div'); row.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0';
+      const lab = el('span', 'small', title); lab.style.minWidth = '46px'; row.appendChild(lab);
+      const sw = [];
+      const mark = () => sw.forEach((b, i) => { b.style.outline = (i - 1) === look[k] ? '3px solid #3a6fd8' : '1px solid #8aa0c8'; b.style.outlineOffset = '1px'; });
+      const mk = (idx, color, name) => {
+        const b = el('button', 'btn sm'); b.type = 'button'; b.setAttribute('aria-label', title + ' ' + name); b.title = name;
+        b.style.cssText = 'width:30px;height:30px;min-width:30px;min-height:30px;flex:none;padding:0;border-radius:50%;background:' + (color || 'linear-gradient(135deg,#fff 45%,#cfd8ea 55%)') + ';font-size:12px';
+        if (!color) b.textContent = '↺';
+        b.addEventListener('click', () => { look[k] = idx; mark(); refresh(); });
+        sw.push(b); row.appendChild(b);
+      };
+      mk(-1, null, 'ค่าเริ่มต้น'); L.LOOKS[kind].forEach((c, i) => mk(i, c, L.LOOK_NAMES[kind][i]));
+      mark(); body.appendChild(row);
+    }
+    body.appendChild(inp); body.appendChild(err);
+    const submit = () => {
+      const r = L.addChar(profiles, acc.id, inp.value, Math.random, look);
+      if (!r.ok) { err.textContent = '⚠ ' + r.msg; inp.focus(); return; }
+      try { localStorage.setItem(lsk(L.charKey(acc.id, r.ch.id)), L.serialize(L.newGameState())); } catch (e) { game.saveWarned = true; }
+      saveProfiles();
+      enterCharacter(acc, r.ch);
+    };
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); submit(); } });
+    openModal('สร้างตัวละคร', body, [{ label: 'ตกลง', cls: 'main', onClick: submit }, { label: 'ย้อนกลับ', onClick: () => openChars(acc) }], 'title');
+    startPreview(cv, pvp);
+    setTimeout(() => inp.focus(), 0);
   }
   function openAccounts() {
     if (!profiles.accounts.length) { openCreateAccount(false); return; }
@@ -4461,7 +4505,7 @@ const Logic = (function () {
     const grid = el('div', 'chargrid'), previews = [];
     for (const ch of acc.chars) {
       const info = charInfo(acc, ch), card = el('div', 'box chcard'), cv = el('canvas');
-      card.appendChild(cv); previews.push([cv, info.player]);
+      info.player.look = ch.look || null; card.appendChild(cv); previews.push([cv, info.player]);
       card.appendChild(el('div', 'nm', ch.name));
       card.appendChild(el('div', 'small', info.line));
       const row = el('div'); row.style.cssText = 'display:flex;gap:6px;margin-top:4px';
@@ -6569,7 +6613,7 @@ const Logic = (function () {
 
   // ---------- ตัวละครผู้เล่น: การ์ตูนหัวโต ไล่เฉดสี+แสงเงา ขา/แขนขยับ ชุดและอาวุธเปลี่ยนตามระดับ ----------
   // สัดส่วนราว 3 หัว สูงเท่า NPC/มอนสเตอร์ (ไม่ขยาย) โทนสีนุ่มแบบดิน ตาเล็กเรียบ เส้นขอบบางสีน้ำตาลเข้ม
-  const INK = '#3a2820', SKIN = '#f6d9b8';
+  const INK = '#3a2820', SKIN_DEFAULT = '#f6d9b8'; let SKIN = SKIN_DEFAULT, EYE_OVERRIDE = null;   // SKIN/EYE_OVERRIDE เปลี่ยนชั่วคราวตอนวาดตัวละครที่ผู้เล่นเลือกหน้าตาเอง (0.56) แล้วคืนค่าเดิม
   const HAIR_COLOR = { novice: '#a8703d', swordsman: '#d9aa55', mage: '#98a2d6', archer: '#b4743a', knight: '#e0b860', highWizard: '#c9b8f0', hunter: '#8a5a2e' };
   const PAL = {   // ชุดหลัก/กางเกง/ผ้าคาด/ขอบ/ผ้าคลุม ของแต่ละอาชีพ (สีหม่น ไม่สดจัด)
     novice:    { top: '#d8bd8c', pants: '#8f6b4a', sash: '#b5573f', trim: '#f1e2bd' },
@@ -6630,6 +6674,8 @@ const Logic = (function () {
     ironHelm: { c: '#b4bdca', d: '#7b8594' }, crystalCrown: { c: '#8fe6ff', d: '#c58bff' }, frostHood: { c: '#dff0ff', d: '#8fb9e6' } };
   const ACC_LOOK = { scarfRed: { c: '#d9484a', d: '#a42a2c' }, copperRing: { c: '#c98a4a', d: '#8a5a2a' }, travelCape: { c: '#7a5a8a', d: '#5a3f68' },
     silverPendant: { c: '#d8e2ee', d: '#4aa8ff' }, frostCloak: { c: '#c9e2fa', d: '#7fb0e0' }, angelWings: { c: '#ffffff', d: '#ffe08a' } };
+  // สัดส่วนตัวละคร (0.57): ยืดทั้งตัวให้สูงเพรียวขึ้น แล้วย่อหัวให้เล็กลง (ค่า HEAD_* ชดเชยการยืดแล้ว หัวจึงไม่เพี้ยนเป็นรูปยาว) ≈ 3.5 หัว จากเดิม ≈ 2.5 หัว
+  const BODY_W = 0.94, BODY_H = 1.28, HEAD_W = 0.78, HEAD_H = 0.6;
   const pv = { x: 0, y: 0, up: false };   // ตำแหน่งเฟรมก่อน — ใช้รู้ว่ากำลังเดินขึ้น (จะหันหลังให้ผู้เล่น)
   function tuft(ax, ay, tx, ty, bx, by) {   // ช่อผมโค้งมนรูปใบไม้ (ฐาน a–b ปลาย t) แทนสามเหลี่ยมแหลม
     ctx.beginPath(); ctx.moveTo(ax, ay);
@@ -7352,11 +7398,19 @@ const Logic = (function () {
     ctx.globalAlpha = keep;
     deathSoul(p.x, p.y, (t - 1.3) / 0.9, 1);
   }
+  // หน้าตาที่ผู้เล่นเลือก (สีผม/สีตา/สีผิว) — ยืมตัวแปรสีชั่วคราวแล้วคืนเสมอ · p.look ถ้าไม่ระบุ = ของตัวละครที่กำลังเล่น (ถ้าเป็นตัวเรา)
   function drawPlayer(p) {
+    const lk = L.lookColors(p.look !== undefined ? p.look : (active && state && p === state.player ? active.ch.look : null));
+    if (!lk) { drawPlayerInner(p); return; }
+    const hk = p.job, oldHair = HAIR_COLOR[hk], oldSkin = SKIN, oldEye = EYE_OVERRIDE;
+    try { if (lk.hair) HAIR_COLOR[hk] = lk.hair; if (lk.skin) SKIN = lk.skin; EYE_OVERRIDE = lk.eye; drawPlayerInner(p); }
+    finally { HAIR_COLOR[hk] = oldHair; SKIN = oldSkin; EYE_OVERRIDE = oldEye; }
+  }
+  function drawPlayerInner(p) {
     ctx.save(); softCorners = 1.2;   // ชุด/หมวก/ผมมุมมนนุ่มขึ้น (0.52.8) — ปิดก่อนวาดอาวุธ
     const job = L.lineOf(p.job), f = rt.face, t = game.time;
     const z = computePose(p, job); curPose = z;
-    ctx.translate(p.x, p.y); ctx.rotate(-z.tilt * f); ctx.scale(z.sx, z.sy); ctx.translate(-p.x, -p.y);   // ล้ม/สะดุ้ง/หมุนตัว: แปลงทั้งตัวรอบเท้า
+    ctx.translate(p.x, p.y); ctx.rotate(-z.tilt * f); ctx.scale(z.sx * BODY_W, z.sy * BODY_H); ctx.translate(-p.x, -p.y);   // ล้ม/สะดุ้ง/หมุนตัว: แปลงทั้งตัวรอบเท้า
     // ทิศหัน: เดินขึ้น = หันหลังให้ผู้เล่น (ตอนโจมตีหรือเดินลง/ข้าง = เห็นหน้า)
     const mx = p.x - pv.x, my = p.y - pv.y; pv.x = p.x; pv.y = p.y;
     if (rt.swingT > 0) pv.up = false;
@@ -7449,7 +7503,7 @@ const Logic = (function () {
     drawSwordTrail(p, wx, wy, z);   // แสงฟัน (ริบบิ้นโค้ง อยู่หลังหัว)
     // หัว (เอียงตามท่าเดิน/ท่าโจมตี)
     ctx.save();
-    ctx.translate(hx0, y - 31); ctx.rotate(rt.moving ? Math.sin(t * 14) * 0.03 : ease * 0.09 * f + (pvMode ? 0 : life.gaze * 0.05 + life.gazeY * 0.03)); ctx.scale(1.2, 1.12); ctx.translate(-hx0, -(y - 31));   // หัวโตกว้างแบบการ์ตูน (0.51): ขยายทั้งหัว หมวก และผมพร้อมกัน
+    ctx.translate(hx0, y - 31); ctx.rotate(rt.moving ? Math.sin(t * 14) * 0.03 : ease * 0.09 * f + (pvMode ? 0 : life.gaze * 0.05 + life.gazeY * 0.03)); ctx.scale(1.2 * HEAD_W, 1.12 * HEAD_H); ctx.translate(-hx0, -(y - 31));   // หัวโตกว้างแบบการ์ตูน (0.51): ขยายทั้งหัว หมวก และผมพร้อมกัน
     ctx.fillStyle = mixHex(SKIN, -0.1); rrect(hx0 - 2.4, y - 34, 4.8, 5, 1.5); ink(0.8);   // คอ
     const hairG = lin(hx0, hy - 13, hx0, hy - 1, hair, 0.22, -0.18), strand = mixHex(hair, 0.32);
     if (job === 'archer') {   // หางม้า
@@ -7490,7 +7544,7 @@ const Logic = (function () {
       ctx.stroke();
       // ตาเล็กเรียบ จมูก ปาก แก้มจาง ๆ
       const gx = pvMode ? 0 : life.gaze * 1.3, gy = pvMode ? 0 : life.gazeY * 0.8, ex = hx0 + 2.6 * f + gx, blink = pvMode ? ((t + 1.5) % 3.8) < 0.12 : life.blink;
-      const iris = mixHex(hair, -0.42);
+      const iris = EYE_OVERRIDE || mixHex(hair, -0.42);
       for (const dx of [-3.7, 3.7]) {   // ตาโตเงาวาว: ขอบเข้ม ม่านตาไล่สี ประกาย 2 จุด (ขนตาบนหนา)
         const exx = ex + dx;
         if (blink) { ctx.strokeStyle = INK; ctx.lineWidth = 1.2; ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(exx, hy + 2.2, 1.9, 0.15, Math.PI - 0.15); ctx.stroke(); continue; }
@@ -9874,7 +9928,7 @@ const Logic = (function () {
   }, 250);
 
   // ช่องทางให้ตัวตรวจสอบอัตโนมัติเรียกดูสถานะ (ไม่มีผลกับผู้เล่น)
-  window.__aetheria = { L, sendEmote, openEmotes, life, react, playerHurt, state: () => state, world: () => world, rt, game, enterMap, talkTo, openBag, settings: () => settings, toggleAuto, openAuto, openCardBook, openStatus, openChar, ui, profiles: () => profiles, active: () => active, CLOUD, cloudRun, logout, MP, mpGotPos, enterCharacter, leaveToSelect, openAccounts, openChars, v3, proj, pxPerUnit, screenToWorld, computePose, pv };
+  window.__aetheria = { L, sendEmote, openEmotes, life, react, playerHurt, state: () => state, world: () => world, rt, game, enterMap, talkTo, openBag, settings: () => settings, toggleAuto, openAuto, openCardBook, openStatus, openChar, ui, profiles: () => profiles, active: () => active, CLOUD, cloudRun, logout, MP, mpGotPos, openCreateChar, enterCharacter, leaveToSelect, openAccounts, openChars, v3, proj, pxPerUnit, screenToWorld, computePose, pv };
 })();
 </script>
 </body>
