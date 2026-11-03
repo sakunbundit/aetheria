@@ -309,7 +309,7 @@ noscript{position:fixed;inset:0;display:flex;align-items:center;justify-content:
 // =====================================================================
 const Logic = (function () {
   'use strict';
-  const VERSION = '0.55.0';
+  const VERSION = '0.55.1';
   const SAVE_VERSION = 4;
   const MAX_LEVEL = 150;   // 0.13: ขยายจาก 50 เป็น 99 · 0.16: ขยายเป็น 120 · 0.33: ขยายเป็น 150
   const MAP_W = 1600, MAP_H = 1200;
@@ -2392,21 +2392,38 @@ const Logic = (function () {
     }
     return loc;
   }
+  // ความคืบหน้าของข้อความเซฟตัวละคร (ไว้เทียบว่าฝั่งไหนเล่นไปไกลกว่า) — EXP ไม่เคยลดลง จึงเทียบได้: เลเวล → ขั้นอาชีพ → Job Lv → EXP · null = อ่านไม่ได้
+  function saveProgress(text) {
+    const s = typeof text === 'string' ? deserialize(text) : null;
+    if (!s) return null;
+    const p = s.player; let tier = 0;
+    for (let j = JOBS[p.job]; j && j.from; j = JOBS[j.from]) tier++;
+    return [p.level, tier, jobLevelOf(p), p.exp];
+  }
+  // > 0 = a ไปไกลกว่า b · < 0 = b ไกลกว่า · 0 = เท่ากัน/เทียบไม่ได้
+  function compareProgress(a, b) {
+    const x = saveProgress(a), y = saveProgress(b);
+    if (!x || !y) return 0;
+    for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return x[i] > y[i] ? 1 : -1;
+    return 0;
+  }
   // รวมของในเครื่องกับของบนเน็ต: แถวที่เครื่องแก้ไว้ยังไม่ส่ง (hash ไม่ตรงตอนซิงก์ล่าสุด) ใช้ของเครื่อง · นอกนั้นใช้ของเน็ต
-  // opt.keep = แถวที่ห้ามเอาของเน็ตมาทับ (ตัวละครที่กำลังเล่นอยู่)
-  // คืน { rows: ข้อมูลหลังรวม, taken: แถวที่ใช้ของเน็ต, removeCloud: แถวที่ผู้เล่นลบในเครื่องแล้ว ให้ลบบนเน็ตด้วย }
+  // opt.keep = แถวที่ห้ามเอาของเน็ตมาทับ (ตัวละครที่กำลังเล่นอยู่) · opt.force = แถวที่ผู้เล่นตั้งใจย้อนเอง (เช่น เริ่มตัวละครใหม่) ใช้ของเครื่องเสมอ
+  // ตัวละครที่ของบนเน็ตเล่นไปไกลกว่าของเครื่อง (เครื่องอื่นเล่นต่อไว้) = ใช้ของเน็ตเสมอ แม้เครื่องนี้จะมีของค้างส่ง/กำลังเล่นอยู่ — กันเครื่องที่ล้าหลังส่งเซฟเก่าไปทับ (adopted)
+  // คืน { rows: ข้อมูลหลังรวม, taken: แถวที่ใช้ของเน็ต, removeCloud: แถวที่ผู้เล่นลบในเครื่องแล้ว ให้ลบบนเน็ตด้วย, adopted: ตัวละครที่ถูกแทนด้วยของเน็ตเพราะไกลกว่า }
   function cloudMerge(localParts, synced, cloudRows, opt) {
-    const keep = (opt && opt.keep) || [], h = cloudHashes(localParts), rows = {}, taken = [], removeCloud = [];
+    const keep = (opt && opt.keep) || [], force = (opt && opt.force) || [], h = cloudHashes(localParts), rows = {}, taken = [], removeCloud = [], adopted = [];
     for (const k of Object.keys(localParts)) rows[k] = localParts[k];
     for (const k of Object.keys(cloudRows)) {
       const has = localParts[k] !== undefined;
       if (!has && synced[k] !== undefined) { removeCloud.push(k); continue; }
+      if (has && k.indexOf('c:') === 0 && !force.includes(k) && h[k] !== cloudHash(cloudRows[k]) && compareProgress(cloudRows[k], localParts[k]) > 0) { rows[k] = cloudRows[k]; taken.push(k); adopted.push(k); continue; }
       if (has && keep.includes(k)) continue;
       const edited = has && synced[k] !== undefined && synced[k] !== h[k];
       if (k === CLOUD_PROFILES_KEY && edited) { rows[k] = mergeProfileLists(localParts[k], cloudRows[k], synced); continue; }
       if (!edited) { rows[k] = cloudRows[k]; taken.push(k); }
     }
-    return { rows, taken, removeCloud };
+    return { rows, taken, removeCloud, adopted };
   }
 
 
@@ -3602,7 +3619,7 @@ const Logic = (function () {
     mulberry32, createWorld, terrainAt, nearWater, serialize, deserialize,
     MAX_ACCOUNTS, MAX_CHARS, NAME_MAX, emptyProfiles, sanitizeProfiles, validateName, addAccount, addChar, removeChar, removeAccount,
     findAccount, findChar, charKey, migrateLegacy, peekSave,
-    CLOUD_PROFILES_KEY, cloudCharKey, cloudHash, cloudHashes, cloudDirty, cloudDeleted, mergeProfileLists, cloudMerge,
+    CLOUD_PROFILES_KEY, cloudCharKey, cloudHash, cloudHashes, cloudDirty, cloudDeleted, mergeProfileLists, cloudMerge, saveProgress, compareProgress,
     PEER_SEND_INTERVAL, PEER_KEEPALIVE, PEER_TIMEOUT, PEER_MAX, peerChannel, sanitizePeer, peerPacket, sanitizePeerSay, peerStep,
     WORLD_POS, WORLD_REGION, DIR_NAME, DIR_ARROW, warpDir, CHAT_MAX, CHAT_NPC_RANGE, ASSISTANT_NAME, isRefineMat, lootClass, lootNotable, sanitizeChat, parseChat, EMOTES, EMOTE_COOLDOWN, EMOTE_TIME, emoteById, emoteByCmd, npcReply, addressedToAssistant, assistantReply
   };
@@ -3789,7 +3806,7 @@ const Logic = (function () {
   const SB_URL = 'https://cpxxgdsbyxvlwxcebxlb.supabase.co';
   const SB_KEY = 'sb_publishable_LKeHRLjN5BZvGtwsrwmw3A_A12o-469';   // คีย์สาธารณะ ใส่ในหน้าเว็บได้ ความปลอดภัยอยู่ที่กฎของตาราง (RLS) ฝั่ง Supabase
   const AUTH_KEY = 'aetheria_auth', SYNC_PREFIX = 'aetheria_sync_', IMPORT_PREFIX = 'aetheria_imported_';
-  const CLOUD = { on: false, session: null, status: 'login', msg: '', synced: {}, timer: 0, busy: false, again: false, lastRun: 0, pulled: false };
+  const CLOUD = { on: false, session: null, status: 'login', msg: '', synced: {}, seen: {}, force: [], timer: 0, busy: false, again: false, lastRun: 0, pulled: false };
   const auth = { mode: 'in', email: '', busy: false };
   const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
   const lsPut = (k, v) => { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } };
@@ -3895,7 +3912,7 @@ const Logic = (function () {
     list.forEach(x => { cloud[x.key] = x.data; });
     if (opt.first && !Object.keys(cloud).length) offerImport();
     const keep = (!opt.first && active) ? [L.cloudCharKey(active.acc.id, active.ch.id)] : [];   // ระหว่างเล่น ไม่เอาของเน็ตมาทับตัวละครที่กำลังเล่น
-    const mr = L.cloudMerge(cloudParts(), CLOUD.synced, cloud, { keep });
+    const mr = L.cloudMerge(cloudParts(), CLOUD.synced, cloud, { keep, force: CLOUD.force });
     for (const k of mr.taken) {
       if (k !== L.CLOUD_PROFILES_KEY && typeof mr.rows[k] === 'string') lsPut(lsk('aetheria_c_' + k.slice(2)), mr.rows[k]);
     }
@@ -3909,22 +3926,31 @@ const Logic = (function () {
     const h = L.cloudHashes(cloudParts());
     mr.taken.forEach(k => { if (h[k] !== undefined) CLOUD.synced[k] = h[k]; });
     saveSynced();
+    // ตัวละครที่กำลังเล่นอยู่ถูกเครื่องอื่นเล่นไปไกลกว่า → โหลดความคืบหน้าล่าสุดมาแทน (ไม่งั้นจะส่งเซฟเก่าไปทับ)
+    if (active && mr.adopted.includes(L.cloudCharKey(active.acc.id, active.ch.id))) {
+      state = loadCharState(active.acc, active.ch);
+      setAuto(false, ''); enterMap(state.player.map); game.deadT = 0; game.combatT = 0; rt.cd = {};
+      addLog('🔄 เครื่องอื่นเล่นตัวละครนี้ไปไกลกว่า — โหลดความคืบหน้าล่าสุดให้แล้ว (Lv ' + state.player.level + ')', 'cmd');
+    }
   }
+  function cloudForce(key) { if (!CLOUD.force.includes(key)) CLOUD.force.push(key); clearTimeout(CLOUD.timer); cloudRun({ pull: false }); }   // ผู้เล่นตั้งใจย้อนเอง (เริ่มตัวละครใหม่): ใช้ของเครื่องทับของเน็ตครั้งนี้
   async function cloudPush(tok) {
     const parts = cloudParts(), dirty = L.cloudDirty(parts, CLOUD.synced), del = L.cloudDeleted(parts, CLOUD.synced);
     if (!dirty.length && !del.length) return;
     const snap = L.cloudHashes(parts), now = new Date().toISOString(), uid = CLOUD.session.uid;
     if (dirty.length) {
       const body = dirty.map(k => ({ user_id: uid, key: k, data: parts[k], updated_at: now }));
-      const r = await sbFetch('/rest/v1/ae_saves?on_conflict=user_id,key', { method: 'POST', token: tok, headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body });
+      const r = await sbFetch('/rest/v1/ae_saves?on_conflict=user_id,key&select=key,updated_at', { method: 'POST', token: tok, headers: { Prefer: 'resolution=merge-duplicates,return=representation' }, body });
       if (!r.ok) throw cloudErr(r);
-      dirty.forEach(k => { CLOUD.synced[k] = snap[k]; });
+      for (const x of Array.isArray(r.json) ? r.json : []) if (x && typeof x.key === 'string') CLOUD.seen[x.key] = x.updated_at;   // จำเวลาแถวที่เราเพิ่งส่ง จะไม่ดึงกลับมาซ้ำ
+      dirty.forEach(k => { CLOUD.synced[k] = snap[k]; delete CLOUD.force[CLOUD.force.indexOf(k)]; });
+      CLOUD.force = CLOUD.force.filter(Boolean);
       saveSynced();
     }
     for (const k of del) {
       const r = await sbFetch('/rest/v1/ae_saves?user_id=eq.' + uid + '&key=eq.' + encodeURIComponent(k), { method: 'DELETE', token: tok });
       if (!r.ok) throw cloudErr(r);
-      delete CLOUD.synced[k];
+      delete CLOUD.synced[k]; delete CLOUD.seen[k];
       saveSynced();
     }
   }
@@ -3936,10 +3962,15 @@ const Logic = (function () {
     CLOUD.busy = true; CLOUD.lastRun = Date.now(); setCloud('sending');
     try {
       const tok = await ensureToken();
-      if (opt.pull !== false || !CLOUD.pulled) {
-        const r = await sbFetch('/rest/v1/ae_saves?select=key,data', { token: tok });
+      // ทุกรอบ (รวมรอบส่งอัตโนมัติ) ดูก่อนว่าเครื่องอื่นแก้แถวไหนบนเน็ตไปบ้าง (ขอเฉพาะชื่อ+เวลา เบามาก) แล้วดึงเฉพาะแถวที่เปลี่ยน → เครื่องที่ล้าหลังจะไม่ส่งเซฟเก่าไปทับ
+      const mr = await sbFetch('/rest/v1/ae_saves?select=key,updated_at', { token: tok });
+      if (!mr.ok) throw cloudErr(mr);
+      const stale = (mr.json || []).filter(x => CLOUD.seen[x.key] !== x.updated_at).map(x => x.key);
+      if (stale.length || !CLOUD.pulled) {
+        const r = stale.length ? await sbFetch('/rest/v1/ae_saves?select=key,data,updated_at&key=in.(' + stale.map(k => '"' + k + '"').join(',') + ')', { token: tok }) : { ok: true, json: [] };
         if (!r.ok) throw cloudErr(r);
         applyCloudRows(r.json || [], { first: !!opt.first });
+        for (const x of r.json || []) CLOUD.seen[x.key] = x.updated_at;
         CLOUD.pulled = true;
       }
       await cloudPush(await ensureToken());
@@ -4000,7 +4031,7 @@ const Logic = (function () {
   // เข้าสู่ระบบสำเร็จ: เปลี่ยนไปใช้ที่เก็บในเครื่องของบัญชีนี้ → ดึงของจากเน็ต → ขึ้นหน้าเลือกบัญชี/ตัวละคร
   async function enterCloud() {
     NS = 'u_' + CLOUD.session.uid + '_';
-    CLOUD.on = true; CLOUD.synced = loadSynced(); CLOUD.pulled = false; CLOUD.status = 'sending';
+    CLOUD.on = true; CLOUD.synced = loadSynced(); CLOUD.seen = {}; CLOUD.force = []; CLOUD.pulled = false; CLOUD.status = 'sending';
     loadProfiles();
     document.body.classList.add('intitle');
     openModal('กำลังโหลด', '<p>☁️ กำลังโหลดตัวละครของคุณจากเน็ต…</p>', [], 'title');
@@ -4321,6 +4352,7 @@ const Logic = (function () {
     closeModal();
     addLog('เริ่มเกมใหม่แล้ว!');
     save();
+    cloudForce(L.cloudCharKey(active.acc.id, active.ch.id));   // ตั้งใจย้อนเอง: ห้ามระบบ "เอาของเน็ตที่ไกลกว่า" มาทับ
   }
   // ---------- เลือกบัญชี / ตัวละคร (หน้าต่างชนิด 'title' ปิดเองไม่ได้ ต้องเลือกก่อนถึงจะเริ่มเล่น) ----------
   function startTitle() {
