@@ -212,15 +212,59 @@ body.intitle #upToast,body.modal-open #upToast{display:none}
   .stage .zline{margin-top:0}
 }
 #err{position:fixed;left:8px;right:8px;top:50%;transform:translateY(-50%);padding:14px;background:#5a1f1f;border:2px solid #f66;border-radius:12px;text-align:center;z-index:9;white-space:pre-line}
+/* ---- มือถือ/แท็บเล็ต (0.59): จอยเดินซ้ายล่าง + ปุ่มสกิลเรียงโค้งรอบปุ่มโจมตีขวาล่าง (เฉพาะจอสัมผัส body.touch) ---- */
+#joy{display:none;position:fixed;left:max(14px,env(safe-area-inset-left));bottom:max(14px,env(safe-area-inset-bottom));width:124px;height:124px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.08),rgba(255,255,255,.22));border:2px solid rgba(255,255,255,.55);box-shadow:0 2px 10px rgba(0,0,0,.25);touch-action:none;z-index:5}
+#joy i{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#b9d3f7);border:3px solid #fff;box-shadow:0 2px 6px rgba(25,55,120,.45);pointer-events:none}
+#joy.on{border-color:#fff;background:radial-gradient(circle,rgba(255,255,255,.16),rgba(255,255,255,.34))}
+body.touch #joy{display:block}
+body.intitle #joy,body.chat-open #joy,body.modal-open #joy{display:none!important}
+body.touch #actions{display:block;width:220px;height:220px;right:max(6px,env(safe-area-inset-right));bottom:max(6px,env(safe-area-inset-bottom));pointer-events:none}
+body.touch #actions .act{position:absolute;width:54px;height:54px;pointer-events:auto;font-size:9.5px;touch-action:none}
+body.touch #actions .act b{font-size:18px}
+body.touch #actions .act span{display:block;max-width:50px;margin:0 auto;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+body.touch #actions #aAtk{right:8px;bottom:8px;width:76px;height:76px;font-size:12px}
+body.touch #actions #aAtk b{font-size:26px}
+body.touch #aS1{right:101px;bottom:19px}
+body.touch #aS2{right:77px;bottom:77px}
+body.touch #aS3{right:19px;bottom:101px}
+body.touch #actions #aPot,body.touch #actions #aS4,body.touch #actions #aS5,body.touch #actions #aS6,body.touch #actions #aAuto{width:50px;height:50px}
+body.touch #aPot{right:167px;bottom:21px}
+body.touch #aS4{right:156px;bottom:77px}
+body.touch #aS5{right:124px;bottom:124px}
+body.touch #aS6{right:77px;bottom:156px}
+body.touch #aAuto{right:21px;bottom:167px}
+body.touch #log{left:calc(max(14px,env(safe-area-inset-left)) + 136px);width:clamp(110px,calc(100vw - 380px),380px)}
+body.touch.chat-open #log{left:8px}
+body.touch #upToast{left:calc(max(14px,env(safe-area-inset-left)) + 136px);bottom:calc(max(8px,env(safe-area-inset-bottom)) + 150px);width:clamp(180px,calc(100vw - 380px),340px)}
+#dlg{max-height:calc(100dvh - 20px)}
+/* มือถือแนวตั้ง: แถบปุ่มบนสุดเต็มความกว้าง · สถานะ + แผนที่ย่ออยู่ใต้แถบ · ข้อความเหนือจอย/ปุ่มสกิล */
 @media (max-width:560px){
-  #hud{width:calc(100vw - 72px)}
-  #topRight{display:grid;grid-template-columns:repeat(2,44px);gap:5px;padding:6px}
-  #topRight .sep{grid-column:1/-1;width:auto;height:1.5px;margin:1px 4px}
+  #topRight{left:max(6px,env(safe-area-inset-left));right:max(6px,env(safe-area-inset-right));top:max(6px,env(safe-area-inset-top));display:flex;justify-content:space-between;gap:3px;padding:4px;max-width:none}
+  #topRight .btn{flex:1 1 0;min-width:0;min-height:42px;padding:2px;font-size:17px}
+  #topRight .sep{display:none}
+  #hud{top:calc(max(6px,env(safe-area-inset-top)) + 58px);left:6px;width:calc(100vw - 142px);padding:6px 8px;font-size:12px}
+  #hud .bar{height:13px;margin:3px 0}
+  #mini{top:calc(max(6px,env(safe-area-inset-top)) + 58px);bottom:auto;right:6px;width:124px;height:93px}
   #actions{display:grid;grid-template-columns:repeat(3,58px);gap:8px}
   .act{width:58px;height:58px}
-  #log{width:clamp(110px,calc(100vw - 210px),380px)}
-  #chatBar{width:clamp(150px,calc(100vw - 210px),380px)}
-  #mini{top:auto;bottom:160px;width:150px;height:112px}
+  #log,body.touch #log{left:8px;bottom:calc(max(8px,env(safe-area-inset-bottom)) + 230px);width:calc(100vw - 16px);max-width:420px;font-size:11.5px}
+  body.chat-open #log,body.touch.chat-open #log{bottom:calc(max(8px,env(safe-area-inset-bottom)) + 52px)}
+  #chatBar{width:calc(100vw - 16px)}
+  #upToast,body.touch #upToast{left:8px;bottom:calc(max(8px,env(safe-area-inset-bottom)) + 230px);width:calc(100vw - 16px)}
+}
+/* มือถือแนวนอน (จอเตี้ย): ย่อกล่องสถานะ ปุ่ม และแผนที่ย่อ ให้เหลือที่เห็นฉากมากขึ้น */
+@media (max-height:500px){
+  #hud{width:min(220px,36vw);padding:5px 8px;font-size:11.5px}
+  #hud .bar{height:12px;margin:3px 0}
+  #hud .bar>span{line-height:12px;font-size:9.5px}
+  #qtrack{margin-top:3px;padding-top:3px;font-size:11px}
+  #ver{font-size:10px}
+  #topRight{padding:4px 6px;gap:3px}
+  #topRight .btn{min-width:40px;min-height:40px;font-size:16px;padding:2px 6px}
+  #mini{top:calc(max(8px,env(safe-area-inset-top)) + 56px);width:124px;height:93px}
+  body.touch #joy{width:112px;height:112px}
+  body.touch #log{left:calc(max(14px,env(safe-area-inset-left)) + 124px);width:clamp(110px,calc(100vw - 370px),380px);font-size:11px}
+  body.touch #upToast{left:calc(max(14px,env(safe-area-inset-left)) + 124px);bottom:8px;width:clamp(180px,calc(100vw - 370px),340px)}
 }
 noscript{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0b0f16;font-size:18px;text-align:center;padding:20px}
 .wmap2{position:relative;width:100%;aspect-ratio:1/1;margin:4px 0 6px;border-radius:18px;overflow:hidden;border:3px solid #fff;box-shadow:0 0 0 2px #8fb0e6;background:radial-gradient(circle at 30% 20%,#9fd4f5,#5aa6e0 70%,#4a8fd0)}
@@ -287,6 +331,7 @@ noscript{position:fixed;inset:0;display:flex;align-items:center;justify-content:
   <button class="act" id="aPot" aria-label="ใช้ยา"><b>🧪</b><span id="potCnt">x0</span></button>
   <button class="act" id="aAtk" aria-label="โจมตีตัวใกล้สุด"><b>⚔</b><span>โจมตี</span></button>
 </div>
+<div id="joy" role="application" aria-label="จอยเดิน: ลากนิ้วไปทางที่จะเดิน"><i></i></div>
 
 <div id="overlay" class="hidden"><div id="dlg"><div id="dlgHead"><h2 id="dlgTitle"></h2><button class="xbtn" id="dlgX" aria-label="ปิดหน้าต่าง">✕</button></div><div id="dlgBody"></div><div id="dlgBtns"></div></div></div>
 <div id="err" class="hidden"></div>
@@ -309,7 +354,7 @@ noscript{position:fixed;inset:0;display:flex;align-items:center;justify-content:
 // =====================================================================
 const Logic = (function () {
   'use strict';
-  const VERSION = '0.58.0';
+  const VERSION = '0.59.0';
   const SAVE_VERSION = 4;
   const MAX_LEVEL = 150;   // 0.13: ขยายจาก 50 เป็น 99 · 0.16: ขยายเป็น 120 · 0.33: ขยายเป็น 150
   const MAP_W = 1600, MAP_H = 1200;
@@ -2362,6 +2407,15 @@ const Logic = (function () {
   // แบ่งข้อมูลของบัญชีออนไลน์เป็นแถว: 'profiles' = รายชื่อบัญชี/ตัวละครในเกม · 'c:<บัญชี>_<ตัวละคร>' = ข้อความเซฟของตัวละครนั้น (ตัวละครละแถว)
   const CLOUD_PROFILES_KEY = 'profiles';
   function cloudCharKey(accId, charId) { return 'c:' + accId + '_' + charId; }
+  // 0.59: แถว "เครื่องที่กำลังเล่นตัวละครนี้" 'o:<บัญชี>_<ตัวละคร>' — เปิดตัวละครที่เครื่องใหม่ = เครื่องใหม่เป็นเจ้าของ เครื่องเก่าหยุดเอง (กันสองเครื่องเล่นตัวเดียวกันแล้วเลเวลย้อน)
+  function cloudOwnKey(accId, charId) { return 'o:' + accId + '_' + charId; }
+  function isCloudSaveKey(k) { return typeof k === 'string' && k.indexOf('o:') !== 0; }   // แถวเซฟจริง (ไม่ใช่แถวเจ้าของ)
+  // เครื่องนี้ถูกเครื่องอื่นแย่งเล่นตัวละครแล้วหรือยัง: meta = [{key, updated_at}] จากเน็ต · claimAt = เวลาที่เครื่องนี้เขียนแถวเจ้าของล่าสุด
+  function cloudClaimLost(meta, ownKey, claimAt) {
+    if (!claimAt || !Array.isArray(meta)) return false;
+    const row = meta.find(x => x && x.key === ownKey);
+    return !!row && row.updated_at !== claimAt;
+  }
   function cloudHash(data) {
     const s = JSON.stringify(data); let h = 5381;
     for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0;
@@ -2408,14 +2462,17 @@ const Logic = (function () {
     return 0;
   }
   // รวมของในเครื่องกับของบนเน็ต: แถวที่เครื่องแก้ไว้ยังไม่ส่ง (hash ไม่ตรงตอนซิงก์ล่าสุด) ใช้ของเครื่อง · นอกนั้นใช้ของเน็ต
+  // opt.take = แถวที่ต้องใช้ของเน็ตเสมอ (ตัวละครถูกเครื่องอื่นแย่งเล่น)
   // opt.keep = แถวที่ห้ามเอาของเน็ตมาทับ (ตัวละครที่กำลังเล่นอยู่) · opt.force = แถวที่ผู้เล่นตั้งใจย้อนเอง (เช่น เริ่มตัวละครใหม่) ใช้ของเครื่องเสมอ
   // ตัวละครที่ของบนเน็ตเล่นไปไกลกว่าของเครื่อง (เครื่องอื่นเล่นต่อไว้) = ใช้ของเน็ตเสมอ แม้เครื่องนี้จะมีของค้างส่ง/กำลังเล่นอยู่ — กันเครื่องที่ล้าหลังส่งเซฟเก่าไปทับ (adopted)
   // คืน { rows: ข้อมูลหลังรวม, taken: แถวที่ใช้ของเน็ต, removeCloud: แถวที่ผู้เล่นลบในเครื่องแล้ว ให้ลบบนเน็ตด้วย, adopted: ตัวละครที่ถูกแทนด้วยของเน็ตเพราะไกลกว่า }
   function cloudMerge(localParts, synced, cloudRows, opt) {
-    const keep = (opt && opt.keep) || [], force = (opt && opt.force) || [], h = cloudHashes(localParts), rows = {}, taken = [], removeCloud = [], adopted = [];
+    const keep = (opt && opt.keep) || [], force = (opt && opt.force) || [], take = (opt && opt.take) || [], h = cloudHashes(localParts), rows = {}, taken = [], removeCloud = [], adopted = [];
     for (const k of Object.keys(localParts)) rows[k] = localParts[k];
     for (const k of Object.keys(cloudRows)) {
+      if (!isCloudSaveKey(k)) continue;   // แถวเจ้าของไม่ใช่เซฟ
       const has = localParts[k] !== undefined;
+      if (has && take.includes(k)) { rows[k] = cloudRows[k]; taken.push(k); continue; }   // 0.59: เครื่องอื่นเป็นเจ้าของตัวละครนี้แล้ว → ใช้ของเน็ตเสมอ
       if (!has && synced[k] !== undefined) { removeCloud.push(k); continue; }
       if (has && k.indexOf('c:') === 0 && !force.includes(k) && h[k] !== cloudHash(cloudRows[k]) && compareProgress(cloudRows[k], localParts[k]) > 0) { rows[k] = cloudRows[k]; taken.push(k); adopted.push(k); continue; }
       if (has && keep.includes(k)) continue;
@@ -3637,7 +3694,7 @@ const Logic = (function () {
     mulberry32, createWorld, terrainAt, nearWater, serialize, deserialize,
     MAX_ACCOUNTS, MAX_CHARS, NAME_MAX, emptyProfiles, sanitizeProfiles, validateName, addAccount, addChar, removeChar, removeAccount,
     findAccount, findChar, charKey, migrateLegacy, peekSave,
-    CLOUD_PROFILES_KEY, cloudCharKey, cloudHash, cloudHashes, cloudDirty, cloudDeleted, mergeProfileLists, cloudMerge, saveProgress, compareProgress, LOOKS, LOOK_NAMES, sanitizeLook, lookColors,
+    CLOUD_PROFILES_KEY, cloudCharKey, cloudHash, cloudHashes, cloudDirty, cloudDeleted, mergeProfileLists, cloudMerge, cloudOwnKey, isCloudSaveKey, cloudClaimLost, saveProgress, compareProgress, LOOKS, LOOK_NAMES, sanitizeLook, lookColors,
     PEER_SEND_INTERVAL, PEER_KEEPALIVE, PEER_TIMEOUT, PEER_MAX, peerChannel, sanitizePeer, peerPacket, sanitizePeerSay, peerStep,
     WORLD_POS, WORLD_REGION, DIR_NAME, DIR_ARROW, warpDir, CHAT_MAX, CHAT_NPC_RANGE, ASSISTANT_NAME, isRefineMat, lootClass, lootNotable, sanitizeChat, parseChat, EMOTES, EMOTE_COOLDOWN, EMOTE_TIME, emoteById, emoteByCmd, npcReply, addressedToAssistant, assistantReply
   };
@@ -3829,7 +3886,8 @@ const Logic = (function () {
   const SB_URL = 'https://cpxxgdsbyxvlwxcebxlb.supabase.co';
   const SB_KEY = 'sb_publishable_LKeHRLjN5BZvGtwsrwmw3A_A12o-469';   // คีย์สาธารณะ ใส่ในหน้าเว็บได้ ความปลอดภัยอยู่ที่กฎของตาราง (RLS) ฝั่ง Supabase
   const AUTH_KEY = 'aetheria_auth', SYNC_PREFIX = 'aetheria_sync_', IMPORT_PREFIX = 'aetheria_imported_';
-  const CLOUD = { on: false, session: null, status: 'login', msg: '', synced: {}, seen: {}, force: [], timer: 0, busy: false, again: false, lastRun: 0, pulled: false };
+  const CLOUD = { on: false, session: null, status: 'login', msg: '', synced: {}, seen: {}, force: [], timer: 0, busy: false, again: false, lastRun: 0, pulled: false,
+    claim: null, ka: false, dev: Math.random().toString(36).slice(2, 10) + Date.now().toString(36) };   // 0.59: claim = เครื่องนี้เป็นเจ้าของตัวละครที่เล่นอยู่ { ckey, okey, at } · dev = รหัสหน้าเกมนี้ · ka = รอบส่งตอนปิดหน้า (keepalive)
   const auth = { mode: 'in', email: '', busy: false };
   const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
   const lsPut = (k, v) => { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } };
@@ -3850,7 +3908,9 @@ const Logic = (function () {
     try {
       const headers = Object.assign({ apikey: SB_KEY, 'Content-Type': 'application/json' }, opt.headers || {});
       if (opt.token) headers.Authorization = 'Bearer ' + opt.token;
-      const r = await fetch(SB_URL + path, { method: opt.method || 'GET', headers, body: opt.body ? JSON.stringify(opt.body) : undefined, signal: ctl.signal });
+      const body = opt.body ? JSON.stringify(opt.body) : undefined;
+      // ตอนปิดหน้า/สลับแอป (มือถือ) ใช้ keepalive ให้คำขอส่งต่อได้แม้หน้าถูกพัก (จำกัดขนาด ~64KB)
+      const r = await fetch(SB_URL + path, { method: opt.method || 'GET', headers, body, signal: ctl.signal, keepalive: CLOUD.ka && (!body || body.length < 60000) });
       const t = await r.text(); let j = null;
       try { j = t ? JSON.parse(t) : null; } catch (e) { /* ไม่ใช่ JSON */ }
       return { ok: r.ok, status: r.status, json: j };
@@ -3900,11 +3960,13 @@ const Logic = (function () {
   }
   function setCloud(status, msg) { CLOUD.status = status; CLOUD.msg = msg || ''; paintCloud(); }
   function cloudLine() { const p = el('p', 'small cloudchip', ''); p.textContent = (CLOUD.session ? '👤 ' + CLOUD.session.email + ' · ' : '') + cloudLabel(); return p; }
-  function cloudTouch() {   // มีอะไรเปลี่ยน → ส่งขึ้นเน็ตหลังหยุดนิ่ง 4 วินาที (รวมหลายครั้งเป็นรอบเดียว)
+  // มีอะไรเปลี่ยน → ส่งขึ้นเน็ตภายใน 5 วินาที (รวมหลายครั้งเป็นรอบเดียว)
+  // 0.59: เดิมรอ "หยุดนิ่ง 4 วิ" — ตอนออโต้ล่ามอนเซฟถี่จนไม่เคยหยุดนิ่ง เลยไม่ได้ส่งขึ้นเน็ตเลย อีกเครื่องจึงโหลดได้เลเวลเก่า → เปลี่ยนเป็นส่งทุก 5 วิแน่นอน
+  function clearCloudTimer() { clearTimeout(CLOUD.timer); CLOUD.timer = 0; }
+  function cloudTouch() {
     if (!CLOUD.on) return;
-    setCloud('sending');
-    clearTimeout(CLOUD.timer);
-    CLOUD.timer = setTimeout(() => cloudRun({ pull: false }), 4000);
+    if (CLOUD.status !== 'sending') setCloud('sending');
+    if (!CLOUD.timer) CLOUD.timer = setTimeout(() => { CLOUD.timer = 0; cloudRun({ pull: false }); }, 5000);
   }
 
   // ---------- รวมข้อมูลเน็ต ↔ เครื่อง ----------
@@ -3932,10 +3994,13 @@ const Logic = (function () {
   }
   function applyCloudRows(list, opt) {
     const cloud = {};
-    list.forEach(x => { cloud[x.key] = x.data; });
+    list.forEach(x => { if (L.isCloudSaveKey(x.key)) cloud[x.key] = x.data; });
     if (opt.first && !Object.keys(cloud).length) offerImport();
-    const keep = (!opt.first && active) ? [L.cloudCharKey(active.acc.id, active.ch.id)] : [];   // ระหว่างเล่น ไม่เอาของเน็ตมาทับตัวละครที่กำลังเล่น
-    const mr = L.cloudMerge(cloudParts(), CLOUD.synced, cloud, { keep, force: CLOUD.force });
+    const actKey = active ? L.cloudCharKey(active.acc.id, active.ch.id) : null;
+    const before = actKey ? lsGet(lsk(L.charKey(active.acc.id, active.ch.id))) : null;
+    // ระหว่างเล่น ไม่เอาของเน็ตมาทับตัวละครที่กำลังเล่น (ยกเว้นรอบเพิ่งเปิดตัวละคร opt.fresh = ใช้ของล่าสุดจากเน็ตได้ตามปกติ)
+    const keep = (!opt.first && !opt.fresh && actKey) ? [actKey] : [];
+    const mr = L.cloudMerge(cloudParts(), CLOUD.synced, cloud, { keep, force: CLOUD.force, take: opt.take || [] });
     for (const k of mr.taken) {
       if (k !== L.CLOUD_PROFILES_KEY && typeof mr.rows[k] === 'string') lsPut(lsk('aetheria_c_' + k.slice(2)), mr.rows[k]);
     }
@@ -3949,14 +4014,43 @@ const Logic = (function () {
     const h = L.cloudHashes(cloudParts());
     mr.taken.forEach(k => { if (h[k] !== undefined) CLOUD.synced[k] = h[k]; });
     saveSynced();
-    // ตัวละครที่กำลังเล่นอยู่ถูกเครื่องอื่นเล่นไปไกลกว่า → โหลดความคืบหน้าล่าสุดมาแทน (ไม่งั้นจะส่งเซฟเก่าไปทับ)
-    if (active && mr.adopted.includes(L.cloudCharKey(active.acc.id, active.ch.id))) {
+    // ตัวละครที่กำลังเล่นอยู่ได้ข้อมูลใหม่จากเน็ต (เครื่องอื่นเล่นต่อไว้) → โหลดความคืบหน้าล่าสุดมาแทน (ไม่งั้นจะส่งเซฟเก่าไปทับ)
+    if (actKey && mr.taken.includes(actKey) && mr.rows[actKey] !== before) {
       state = loadCharState(active.acc, active.ch);
       setAuto(false, ''); enterMap(state.player.map); game.deadT = 0; game.combatT = 0; rt.cd = {};
-      addLog('🔄 เครื่องอื่นเล่นตัวละครนี้ไปไกลกว่า — โหลดความคืบหน้าล่าสุดให้แล้ว (Lv ' + state.player.level + ')', 'cmd');
+      addLog('🔄 โหลดความคืบหน้าล่าสุดจากเน็ตแล้ว (Lv ' + state.player.level + ')' + (mr.adopted.includes(actKey) ? ' — เครื่องอื่นเล่นตัวละครนี้ไปไกลกว่า' : ''), 'cmd');
     }
   }
-  function cloudForce(key) { if (!CLOUD.force.includes(key)) CLOUD.force.push(key); clearTimeout(CLOUD.timer); cloudRun({ pull: false }); }   // ผู้เล่นตั้งใจย้อนเอง (เริ่มตัวละครใหม่): ใช้ของเครื่องทับของเน็ตครั้งนี้
+  function cloudForce(key) { if (!CLOUD.force.includes(key)) CLOUD.force.push(key); clearCloudTimer(); cloudRun({ pull: false }); }
+  // 0.59: เปิดเล่นตัวละคร → ประกาศว่าเครื่องนี้เป็นเจ้าของ (เครื่องอื่นที่เปิดตัวเดียวกันค้างไว้จะหยุดเองในรอบซิงก์ถัดไป ก่อนจะส่งเซฟเก่ามาทับ)
+  function cloudClaimStart(acc, ch) {
+    if (!CLOUD.on) return;
+    CLOUD.claim = { ckey: L.cloudCharKey(acc.id, ch.id), okey: L.cloudOwnKey(acc.id, ch.id), at: null };
+    clearCloudTimer(); cloudRun({});
+  }
+  async function cloudClaim(tok) {
+    const cl = CLOUD.claim;
+    const r = await sbFetch('/rest/v1/ae_saves?on_conflict=user_id,key&select=key,updated_at', { method: 'POST', token: tok, headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+      body: [{ user_id: CLOUD.session.uid, key: cl.okey, data: { dev: CLOUD.dev, t: Date.now() }, updated_at: new Date().toISOString() }] });
+    if (!r.ok) throw cloudErr(r);
+    const x = Array.isArray(r.json) && r.json[0];
+    if (x && CLOUD.claim === cl) cl.at = x.updated_at;
+  }
+  // อีกเครื่องเปิดตัวละครนี้ทีหลัง → เครื่องนี้หยุดเล่น (โหลดของล่าสุดจากเน็ตไว้แล้ว ไม่ส่งของเก่าไปทับ) ให้ผู้เล่นเลือกเองว่าจะเล่นที่เครื่องนี้ต่อไหม
+  function claimLost() {
+    if (!active) return;
+    const a = active.acc, c = active.ch;
+    setAuto(false, '');
+    addLog('⏸ ตัวละครนี้ถูกเปิดเล่นที่เครื่องอื่น เครื่องนี้หยุดไว้ก่อน', 'cmd');
+    const body = el('div');
+    body.appendChild(el('p', null, '⏸ ตัวละคร "' + c.name + '" ถูกเปิดเล่นที่อีกเครื่อง (หรืออีกแท็บ) แล้ว'));
+    body.appendChild(el('p', null, 'เครื่องนี้หยุดไว้ก่อน เพื่อไม่ให้สองเครื่องเซฟทับกันจนเลเวลย้อน'));
+    body.appendChild(el('p', 'small', 'กด "เล่นที่เครื่องนี้" = โหลดความคืบหน้าล่าสุดมาเล่นต่อที่นี่ แล้วอีกเครื่องจะหยุดแทน'));
+    openModal('เปิดเล่นที่เครื่องอื่นอยู่', body, [
+      { label: '▶ เล่นที่เครื่องนี้', cls: 'main', onClick: () => enterCharacter(a, c) },
+      { label: '👥 กลับหน้าเลือกตัวละคร', onClick: () => leaveToSelect(false) }
+    ], 'title');
+  }   // ผู้เล่นตั้งใจย้อนเอง (เริ่มตัวละครใหม่): ใช้ของเครื่องทับของเน็ตครั้งนี้
   async function cloudPush(tok) {
     const parts = cloudParts(), dirty = L.cloudDirty(parts, CLOUD.synced), del = L.cloudDeleted(parts, CLOUD.synced);
     if (!dirty.length && !del.length) return;
@@ -3982,36 +4076,46 @@ const Logic = (function () {
     opt = opt || {};
     if (!CLOUD.on || !CLOUD.session) return;
     if (CLOUD.busy) { CLOUD.again = true; return; }
-    CLOUD.busy = true; CLOUD.lastRun = Date.now(); setCloud('sending');
+    CLOUD.busy = true; CLOUD.lastRun = Date.now(); CLOUD.ka = !!opt.hide; setCloud('sending');
     try {
       const tok = await ensureToken();
       // ทุกรอบ (รวมรอบส่งอัตโนมัติ) ดูก่อนว่าเครื่องอื่นแก้แถวไหนบนเน็ตไปบ้าง (ขอเฉพาะชื่อ+เวลา เบามาก) แล้วดึงเฉพาะแถวที่เปลี่ยน → เครื่องที่ล้าหลังจะไม่ส่งเซฟเก่าไปทับ
       const mr = await sbFetch('/rest/v1/ae_saves?select=key,updated_at', { token: tok });
       if (!mr.ok) throw cloudErr(mr);
-      const stale = (mr.json || []).filter(x => CLOUD.seen[x.key] !== x.updated_at).map(x => x.key);
+      const meta = Array.isArray(mr.json) ? mr.json : [];
+      const cl = CLOUD.claim, actKey = active ? L.cloudCharKey(active.acc.id, active.ch.id) : null;
+      const mine = !!(cl && actKey && cl.ckey === actKey);
+      const lost = mine && L.cloudClaimLost(meta, cl.okey, cl.at), claiming = mine && !cl.at;
+      const stale = meta.filter(x => L.isCloudSaveKey(x.key) && CLOUD.seen[x.key] !== x.updated_at).map(x => x.key);
+      if (lost && !stale.includes(actKey) && meta.some(x => x.key === actKey)) stale.push(actKey);
       if (stale.length || !CLOUD.pulled) {
         const r = stale.length ? await sbFetch('/rest/v1/ae_saves?select=key,data,updated_at&key=in.(' + stale.map(k => '"' + k + '"').join(',') + ')', { token: tok }) : { ok: true, json: [] };
         if (!r.ok) throw cloudErr(r);
-        applyCloudRows(r.json || [], { first: !!opt.first });
+        applyCloudRows(r.json || [], { first: !!opt.first, fresh: claiming || lost, take: lost ? [actKey] : [] });
         for (const x of r.json || []) CLOUD.seen[x.key] = x.updated_at;
         CLOUD.pulled = true;
       }
+      if (lost) CLOUD.claim = null;
       await cloudPush(await ensureToken());
+      if (claiming && active && CLOUD.claim === cl) await cloudClaim(await ensureToken());
       setCloud('ok');
+      if (lost) claimLost();
     } catch (e) {
       if (e && e.expired) { lsDel(AUTH_KEY); CLOUD.session = null; toLogin('การเข้าสู่ระบบหมดอายุ กรุณาเข้าสู่ระบบอีกครั้ง (ข้อมูลที่ยังไม่ได้ส่งยังเก็บอยู่ในเครื่อง จะส่งต่อให้หลังเข้าสู่ระบบด้วยอีเมลเดิม)'); }
       else setCloud('offline', e && e.text || 'เกิดข้อผิดพลาด');
     } finally {
       CLOUD.busy = false;
-      if (CLOUD.again) { CLOUD.again = false; clearTimeout(CLOUD.timer); CLOUD.timer = setTimeout(() => cloudRun({ pull: false }), 300); }
+      CLOUD.ka = false;
+      if (CLOUD.again) { CLOUD.again = false; clearCloudTimer(); CLOUD.timer = setTimeout(() => { CLOUD.timer = 0; cloudRun({ pull: false }); }, 300); }
     }
   }
   document.addEventListener('visibilitychange', () => {
     if (!CLOUD.on) return;
-    if (document.hidden) { clearTimeout(CLOUD.timer); cloudRun({ pull: false }); }                 // ปิดหน้า/สลับแท็บ: รีบส่งที่ค้าง
-    else if (Date.now() - CLOUD.lastRun > 60000) cloudRun({});                                      // กลับมา: ดึงของใหม่จากเครื่องอื่น
+    if (document.hidden) { if (active) save(); clearCloudTimer(); cloudRun({ pull: false, hide: true }); }   // ปิดหน้า/สลับแอป: เซฟแล้วรีบส่งที่ค้าง (keepalive)
+    else { clearCloudTimer(); cloudRun({}); }                                                                  // กลับมา: เช็กทันทีว่าเครื่องอื่นเล่นต่อไปหรือแย่งเล่นอยู่ไหม
   });
   window.addEventListener('online', () => cloudRun({}));
+  window.addEventListener('pagehide', () => { if (!CLOUD.on) return; if (active) save(); clearCloudTimer(); cloudRun({ pull: false, hide: true }); });
   setInterval(() => { if (CLOUD.on && !CLOUD.busy && CLOUD.status === 'offline') cloudRun({ pull: false }); }, 20000);
 
   // ---------- หน้าล็อกอิน / สมัคร / ออกจากระบบ ----------
@@ -4072,8 +4176,8 @@ const Logic = (function () {
     startTitle();
   }
   function toLogin(note) {
-    clearTimeout(CLOUD.timer);
-    CLOUD.on = false; CLOUD.session = null; CLOUD.pulled = false; NS = '';
+    clearCloudTimer();
+    CLOUD.on = false; CLOUD.session = null; CLOUD.claim = null; CLOUD.pulled = false; NS = '';
     profiles = L.emptyProfiles();
     if (active) { active = null; state = L.newGameState(); setAuto(false, ''); enterMap(state.player.map); game.deadT = 0; game.combatT = 0; rt.cd = {}; }
     mpSync();
@@ -4085,7 +4189,7 @@ const Logic = (function () {
     if (!force && CLOUD.status !== 'ok' && !confirm('ยังมีข้อมูลที่ส่งขึ้นเน็ตไม่ได้ (เก็บในเครื่องนี้ไว้ก่อน)\nออกจากระบบตอนนี้ได้ ข้อมูลจะไม่หาย — เข้าสู่ระบบด้วยอีเมลเดิมในเครื่องนี้อีกครั้ง ระบบจะส่งต่อให้\n\nออกจากระบบเลยไหม?')) return;
     if (active) save();
     openModal('กำลังออกจากระบบ', '<p>⏳ กำลังบันทึกข้อมูลขึ้นเน็ต…</p>', [], 'title');
-    clearTimeout(CLOUD.timer);
+    clearCloudTimer();
     if (CLOUD.busy) await new Promise(r => setTimeout(r, 1500));
     await cloudRun({ pull: false });
     lsDel(AUTH_KEY);
@@ -4396,7 +4500,7 @@ const Logic = (function () {
     game.verBase = '👤 ' + ch.name + ' · v' + L.VERSION; paintCloud();
     closeModal();
     addLog('ยินดีต้อนรับ ' + ch.name + '!');
-    addLog('คลิก/แตะพื้นเพื่อเดิน · คลิก/แตะมอนสเตอร์เพื่อโจมตี · ปุ่ม 🤖 ออโต้ล่ามอนสเตอร์ · ถึง Lv 10 ไปเปลี่ยนอาชีพที่ครูฝึกไลล่า');
+    addLog((document.body.classList.contains('touch') ? 'ลากจอยซ้ายล่างหรือแตะพื้นเพื่อเดิน' : 'คลิก/แตะพื้นเพื่อเดิน') + ' · คลิก/แตะมอนสเตอร์เพื่อโจมตี · ปุ่ม 🤖 ออโต้ล่ามอนสเตอร์ · ถึง Lv 10 ไปเปลี่ยนอาชีพที่ครูฝึกไลล่า');
     if (L.skillPointsFree(state.player) > 0) addLog('✨ คุณมีแต้มสกิล ' + L.skillPointsFree(state.player) + ' แต้ม กดปุ่ม ✨ หรือ K เพื่ออัพสกิล');
     // เซฟรุ่นเก่า (ก่อนมีระบบสเตตัส): ได้แต้มย้อนหลังตามเลเวล แต่สเตตัสเริ่มที่ 1 → เปิดหน้าสถานะให้แจกทันที
     if (state.migrated) {
@@ -4407,6 +4511,7 @@ const Logic = (function () {
       }
     }
     save();
+    cloudClaimStart(acc, ch);   // 0.59: เครื่องนี้เป็นเจ้าของตัวละครนี้ + ดึงความคืบหน้าล่าสุดจากเน็ตทันที (เครื่องอื่นที่เปิดค้างไว้จะหยุดเอง)
   }
   function leaveToSelect(toAccounts) {
     save(); saveProfiles();
@@ -5865,6 +5970,7 @@ const Logic = (function () {
     if (k['d'] || k['arrowright']) vx += 1;
     if (k['w'] || k['arrowup']) vy -= 1;
     if (k['s'] || k['arrowdown']) vy += 1;
+    if (game.joy && game.joy.id !== null && !game.modal) { vx += game.joy.x; vy += game.joy.y; }   // จอยเดินบนจอสัมผัส (0.59)
     if (k['z']) v3.yaw -= 1.8 * dt;
     if (k['x']) v3.yaw += 1.8 * dt;
     if (k['v']) { v3.yaw = 0; v3.pitch = 0.86; v3.zoomMul = 1; }
@@ -9701,6 +9807,42 @@ const Logic = (function () {
   $('chatSend').addEventListener('click', () => { const v = $('chatIn').value; chatClose(); chatSend(v); });
 
   $('bEmote').addEventListener('click', () => { if (game.modal && game.modalKind === 'emote') closeModal(); else if (!game.modal) openEmotes(); });
+  // ---------- เล่นบนมือถือ/แท็บเล็ต (0.59): จอยเดินมุมซ้ายล่าง ----------
+  // ลากนิ้วบนจอย = เดินตามทิศ (คิดตามทิศบนจอเหมือนปุ่ม WASD) · ปล่อยนิ้ว = หยุด · แตะพื้น/มอนสเตอร์ยังใช้ได้เหมือนเดิม
+  // จอยกับปุ่มสกิลแบบเรียงโค้งจะโชว์เมื่อเป็นจอสัมผัส (body.touch) — เล่นด้วยเมาส์/คีย์บอร์ดหน้าตาเหมือนเดิม
+  const joy = { id: null, cx: 0, cy: 0, x: 0, y: 0 };
+  game.joy = joy;
+  function markTouch() { document.body.classList.add('touch'); }
+  try { if (matchMedia('(pointer: coarse)').matches) markTouch(); } catch (e) { /* เบราว์เซอร์เก่า */ }
+  window.addEventListener('pointerdown', e => { if (e.pointerType === 'touch') markTouch(); }, true);
+  (() => {
+    const base = $('joy'), knob = base.firstElementChild, R = 44, DEAD = 0.18;
+    const paint = () => { knob.style.transform = 'translate(' + (joy.x * R).toFixed(1) + 'px,' + (joy.y * R).toFixed(1) + 'px)'; };
+    const move = e => {
+      let dx = e.clientX - joy.cx, dy = e.clientY - joy.cy;
+      const d = Math.hypot(dx, dy);
+      if (d > R) { dx = dx / d * R; dy = dy / d * R; }
+      const on = Math.hypot(dx, dy) / R >= DEAD;
+      joy.x = on ? dx / R : 0; joy.y = on ? dy / R : 0;
+      paint();
+    };
+    const end = e => {
+      if (e && e.pointerId !== joy.id) return;
+      joy.id = null; joy.x = 0; joy.y = 0; base.classList.remove('on'); paint();
+    };
+    base.addEventListener('pointerdown', e => {
+      e.preventDefault(); e.stopPropagation(); unlockAudio(); markTouch();
+      if (game.modal) return;
+      const r = base.getBoundingClientRect();
+      joy.cx = r.left + r.width / 2; joy.cy = r.top + r.height / 2; joy.id = e.pointerId;
+      try { base.setPointerCapture(e.pointerId); } catch (er) { /* ไม่เป็นไร */ }
+      base.classList.add('on'); move(e);
+    });
+    base.addEventListener('pointermove', e => { if (e.pointerId === joy.id) move(e); });
+    base.addEventListener('pointerup', end); base.addEventListener('pointercancel', end);
+    base.addEventListener('contextmenu', e => e.preventDefault());
+    window.addEventListener('blur', () => end());
+  })();
   // ---------- HUD ----------
   const hudCache = {};
   function setTxt(id, t) { if (hudCache[id] !== t) { hudCache[id] = t; $(id).textContent = t; } }
