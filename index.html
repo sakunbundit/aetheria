@@ -195,6 +195,7 @@ input.txt:focus{outline:3px solid rgba(61,125,224,.35);border-color:var(--blue)}
 .tile .rec{position:absolute;left:1px;top:-4px;font-size:14px;line-height:1;filter:drop-shadow(0 0 2px #fff)}
 .recbox{border:2px solid #ffb84a;background:linear-gradient(#fffaf0,#ffeccb)}
 #upToast{position:fixed;left:8px;bottom:calc(max(8px,env(safe-area-inset-bottom)) + 112px);width:clamp(180px,calc(100vw - 210px),340px);padding:8px 10px;border-radius:14px;border:2px solid #ffb84a;background:linear-gradient(#fffaf0,#ffe9c4);color:#5a3b10;font-size:12.5px;line-height:1.35;box-shadow:0 3px 10px rgba(0,0,0,.35);z-index:30}
+#alertBar{position:fixed;left:50%;transform:translateX(-50%);top:calc(max(6px,env(safe-area-inset-top)) + 60px);width:min(440px,calc(100vw - 16px));padding:10px 12px;border-radius:14px;border:2px solid #ff9a2e;background:linear-gradient(#fff6e0,#ffe0a8);color:#5a3010;font-size:13px;font-weight:bold;line-height:1.4;box-shadow:0 4px 14px rgba(0,0,0,.4);z-index:40;pointer-events:none}
 #upToast .acts{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
 #upToast .acts .btn{min-height:40px}
 body.intitle #upToast,body.modal-open #upToast{display:none}
@@ -237,34 +238,53 @@ body.touch #log{left:calc(max(14px,env(safe-area-inset-left)) + 136px);width:cla
 body.touch.chat-open #log{left:8px}
 body.touch #upToast{left:calc(max(14px,env(safe-area-inset-left)) + 136px);bottom:calc(max(8px,env(safe-area-inset-bottom)) + 150px);width:clamp(180px,calc(100vw - 380px),340px)}
 #dlg{max-height:calc(100dvh - 20px)}
+/* จอสัมผัสทุกขนาด (0.59.1): ข้อความในกล่องสถานะบรรทัดเดียว (ไม่ดันกล่องให้สูง) · ข้อความเกมโชว์แค่ล่าสุด 4 บรรทัด */
+body.touch #qtrack,body.touch #autoLine,body.touch #buffLine,body.touch #ver{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.touch #qtrack{margin-top:4px;padding-top:4px}
+body.touch #log div:nth-last-child(n+5){display:none}
 /* มือถือแนวตั้ง: แถบปุ่มบนสุดเต็มความกว้าง · สถานะ + แผนที่ย่ออยู่ใต้แถบ · ข้อความเหนือจอย/ปุ่มสกิล */
 @media (max-width:560px){
   #topRight{left:max(6px,env(safe-area-inset-left));right:max(6px,env(safe-area-inset-right));top:max(6px,env(safe-area-inset-top));display:flex;justify-content:space-between;gap:3px;padding:4px;max-width:none}
   #topRight .btn{flex:1 1 0;min-width:0;min-height:42px;padding:2px;font-size:17px}
   #topRight .sep{display:none}
-  #hud{top:calc(max(6px,env(safe-area-inset-top)) + 58px);left:6px;width:calc(100vw - 142px);padding:6px 8px;font-size:12px}
+  #hud{top:calc(max(6px,env(safe-area-inset-top)) + 58px);left:6px;width:calc(100vw - 142px);padding:6px 8px;font-size:12px;z-index:2}
   #hud .bar{height:13px;margin:3px 0}
   #mini{top:calc(max(6px,env(safe-area-inset-top)) + 58px);bottom:auto;right:6px;width:124px;height:93px}
   #actions{display:grid;grid-template-columns:repeat(3,58px);gap:8px}
   .act{width:58px;height:58px}
-  #log,body.touch #log{left:8px;bottom:calc(max(8px,env(safe-area-inset-bottom)) + 230px);width:calc(100vw - 16px);max-width:420px;font-size:11.5px}
+  #log,body.touch #log{left:8px;bottom:calc(max(8px,env(safe-area-inset-bottom)) + 232px);width:calc(100vw - 16px);max-width:420px;font-size:11.5px}
   body.chat-open #log,body.touch.chat-open #log{bottom:calc(max(8px,env(safe-area-inset-bottom)) + 52px)}
   #chatBar{width:calc(100vw - 16px)}
-  #upToast,body.touch #upToast{left:8px;bottom:calc(max(8px,env(safe-area-inset-bottom)) + 230px);width:calc(100vw - 16px)}
+  #upToast,body.touch #upToast{left:8px;bottom:calc(max(8px,env(safe-area-inset-bottom)) + 232px);width:calc(100vw - 16px)}
 }
-/* มือถือแนวนอน (จอเตี้ย): ย่อกล่องสถานะ ปุ่ม และแผนที่ย่อ ให้เหลือที่เห็นฉากมากขึ้น */
+/* มือถือแนวนอน (จอเตี้ย ≤500px — ยังไม่หักแถบเบราว์เซอร์): ย่อ HUD ปุ่ม จอย และแผนที่ย่อ ให้เห็นฉากมากขึ้น */
 @media (max-height:500px){
-  #hud{width:min(220px,36vw);padding:5px 8px;font-size:11.5px}
-  #hud .bar{height:12px;margin:3px 0}
+  #hud{width:min(214px,34vw);padding:5px 8px;font-size:11.5px}
+  #hud .bar{height:12px;margin:2px 0}
   #hud .bar>span{line-height:12px;font-size:9.5px}
-  #qtrack{margin-top:3px;padding-top:3px;font-size:11px}
-  #ver{font-size:10px}
-  #topRight{padding:4px 6px;gap:3px}
-  #topRight .btn{min-width:40px;min-height:40px;font-size:16px;padding:2px 6px}
-  #mini{top:calc(max(8px,env(safe-area-inset-top)) + 56px);width:124px;height:93px}
-  body.touch #joy{width:112px;height:112px}
-  body.touch #log{left:calc(max(14px,env(safe-area-inset-left)) + 124px);width:clamp(110px,calc(100vw - 370px),380px);font-size:11px}
-  body.touch #upToast{left:calc(max(14px,env(safe-area-inset-left)) + 124px);bottom:8px;width:clamp(180px,calc(100vw - 370px),340px)}
+  #jobBar{height:9px!important}#jobBar>span{display:none}
+  #hud .small{font-size:11px}
+  #qtrack,#ver,#buffLine{display:none}
+  #topRight{padding:3px 5px;gap:3px;top:max(6px,env(safe-area-inset-top))}
+  #topRight .btn{min-width:38px;min-height:38px;font-size:16px;padding:2px 5px}
+  #topRight .sep{margin:3px 2px}
+  #mini{left:calc(max(8px,env(safe-area-inset-left)) + min(214px,34vw) + 14px);right:auto;top:max(6px,env(safe-area-inset-top));width:104px;height:78px}
+  body.touch #joy{width:96px;height:96px;left:max(10px,env(safe-area-inset-left));bottom:max(10px,env(safe-area-inset-bottom))}
+  body.touch #joy i{width:44px;height:44px;margin:-22px 0 0 -22px}
+  body.touch #actions{transform:scale(.72);transform-origin:right bottom;right:max(4px,env(safe-area-inset-right));bottom:max(4px,env(safe-area-inset-bottom))}
+  body.touch #log{left:calc(max(10px,env(safe-area-inset-left)) + 106px);width:clamp(120px,calc(100vw - 106px - 180px - 24px),420px);bottom:max(8px,env(safe-area-inset-bottom));font-size:10.5px;line-height:1.3}
+  body.touch #log div:nth-last-child(n+4){display:none}
+  body.touch.chat-open #log{left:8px;bottom:calc(max(8px,env(safe-area-inset-bottom)) + 50px)}
+  body.touch #upToast{left:calc(max(10px,env(safe-area-inset-left)) + 106px);bottom:calc(max(8px,env(safe-area-inset-bottom)) + 62px);width:clamp(180px,calc(100vw - 340px),340px)}
+  /* หน้าต่างต่าง ๆ ในจอเตี้ย: ลดขอบ ให้เนื้อหาเหลือที่มากขึ้น */
+  #overlay{padding:4px}
+  #dlg{padding:8px 10px 8px;max-height:calc(100dvh - 8px)}
+  #dlgHead{margin-bottom:4px}
+  #dlg h2{font-size:16px;padding:3px 14px}
+  .xbtn{width:38px;height:38px}
+  .stage canvas{height:150px!important;width:auto!important}
+  .wmap2{aspect-ratio:2/1}
+  .wnode2{min-height:44px;width:clamp(56px,13%,110px)}
 }
 noscript{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0b0f16;font-size:18px;text-align:center;padding:20px}
 .wmap2{position:relative;width:100%;aspect-ratio:1/1;margin:4px 0 6px;border-radius:18px;overflow:hidden;border:3px solid #fff;box-shadow:0 0 0 2px #8fb0e6;background:radial-gradient(circle at 30% 20%,#9fd4f5,#5aa6e0 70%,#4a8fd0)}
@@ -319,6 +339,7 @@ noscript{position:fixed;inset:0;display:flex;align-items:center;justify-content:
 <div id="log"></div>
 <div id="chatBar"><input id="chatIn" type="text" maxlength="80" placeholder="พิมพ์ข้อความ แล้วกด Enter (/help ดูคำสั่ง)" autocomplete="off" aria-label="ช่องแชท"><button class="btn sm main" id="chatSend" type="button">ส่ง</button></div>
 <div id="upToast" class="hidden" role="status"></div>
+<div id="alertBar" class="hidden" role="alert"></div>
 
 <div id="actions">
   <button class="act" id="aAuto" aria-label="เปิด/ปิดออโต้โจมตี (T)"><b>⏩</b><span>ออโต้</span></button>
@@ -354,7 +375,7 @@ noscript{position:fixed;inset:0;display:flex;align-items:center;justify-content:
 // =====================================================================
 const Logic = (function () {
   'use strict';
-  const VERSION = '0.59.0';
+  const VERSION = '0.59.1';
   const SAVE_VERSION = 4;
   const MAX_LEVEL = 150;   // 0.13: ขยายจาก 50 เป็น 99 · 0.16: ขยายเป็น 120 · 0.33: ขยายเป็น 150
   const MAP_W = 1600, MAP_H = 1200;
@@ -2409,7 +2430,17 @@ const Logic = (function () {
   function cloudCharKey(accId, charId) { return 'c:' + accId + '_' + charId; }
   // 0.59: แถว "เครื่องที่กำลังเล่นตัวละครนี้" 'o:<บัญชี>_<ตัวละคร>' — เปิดตัวละครที่เครื่องใหม่ = เครื่องใหม่เป็นเจ้าของ เครื่องเก่าหยุดเอง (กันสองเครื่องเล่นตัวเดียวกันแล้วเลเวลย้อน)
   function cloudOwnKey(accId, charId) { return 'o:' + accId + '_' + charId; }
-  function isCloudSaveKey(k) { return typeof k === 'string' && k.indexOf('o:') !== 0; }   // แถวเซฟจริง (ไม่ใช่แถวเจ้าของ)
+  function isCloudSaveKey(k) { return typeof k === 'string' && k.indexOf('o:') !== 0 && k.indexOf('s:') !== 0; }   // แถวเซฟจริง (ไม่ใช่แถวเจ้าของ/แถวล็อกอิน)
+  // 0.59.1: 1 บัญชี = เล่นได้ทีละเครื่อง — แถว 's:lock' = เครื่องที่ล็อกอินอยู่ (เต้นหัวใจทุก ~20 วิ) · 's:try' = มีคนพยายามเข้าซ้ำ (เครื่องที่เล่นอยู่เห็นแล้วแจ้งเตือน)
+  const SESSION_LOCK_KEY = 's:lock', SESSION_TRY_KEY = 's:try', SESSION_LOCK_TTL = 90;   // วินาที: ไม่มีสัญญาณเกินนี้ = ถือว่าเครื่องนั้นปิดไปแล้ว
+  // เทียบแถวล็อกบนเน็ตกับเครื่องนี้: 'free' ว่าง/หมดอายุ · 'mine' เครื่องนี้ถืออยู่ · 'busy' เครื่องอื่นกำลังเล่น (waitSec = รออีกกี่วินาทีถึงหมดอายุ ถ้าเครื่องนั้นปิดไปแล้ว)
+  function sessionLockState(data, myDev, nowMs) {
+    if (!data || typeof data !== 'object' || typeof data.dev !== 'string') return { state: 'free', waitSec: 0 };
+    if (data.dev === myDev) return { state: 'mine', waitSec: 0 };
+    const age = (nowMs - Number(data.t)) / 1000;
+    if (!isFinite(age) || age >= SESSION_LOCK_TTL || age < -SESSION_LOCK_TTL) return { state: 'free', waitSec: 0 };   // เวลาเพี้ยนเกินไป/หมดอายุ = ไม่ล็อก (ไม่ให้เสียสิทธิ์เล่นถาวร)
+    return { state: 'busy', waitSec: Math.max(1, Math.ceil(SESSION_LOCK_TTL - age)) };
+  }
   // เครื่องนี้ถูกเครื่องอื่นแย่งเล่นตัวละครแล้วหรือยัง: meta = [{key, updated_at}] จากเน็ต · claimAt = เวลาที่เครื่องนี้เขียนแถวเจ้าของล่าสุด
   function cloudClaimLost(meta, ownKey, claimAt) {
     if (!claimAt || !Array.isArray(meta)) return false;
@@ -3694,7 +3725,7 @@ const Logic = (function () {
     mulberry32, createWorld, terrainAt, nearWater, serialize, deserialize,
     MAX_ACCOUNTS, MAX_CHARS, NAME_MAX, emptyProfiles, sanitizeProfiles, validateName, addAccount, addChar, removeChar, removeAccount,
     findAccount, findChar, charKey, migrateLegacy, peekSave,
-    CLOUD_PROFILES_KEY, cloudCharKey, cloudHash, cloudHashes, cloudDirty, cloudDeleted, mergeProfileLists, cloudMerge, cloudOwnKey, isCloudSaveKey, cloudClaimLost, saveProgress, compareProgress, LOOKS, LOOK_NAMES, sanitizeLook, lookColors,
+    CLOUD_PROFILES_KEY, cloudCharKey, cloudHash, cloudHashes, cloudDirty, cloudDeleted, mergeProfileLists, cloudMerge, cloudOwnKey, isCloudSaveKey, SESSION_LOCK_KEY, SESSION_TRY_KEY, SESSION_LOCK_TTL, sessionLockState, cloudClaimLost, saveProgress, compareProgress, LOOKS, LOOK_NAMES, sanitizeLook, lookColors,
     PEER_SEND_INTERVAL, PEER_KEEPALIVE, PEER_TIMEOUT, PEER_MAX, peerChannel, sanitizePeer, peerPacket, sanitizePeerSay, peerStep,
     WORLD_POS, WORLD_REGION, DIR_NAME, DIR_ARROW, warpDir, CHAT_MAX, CHAT_NPC_RANGE, ASSISTANT_NAME, isRefineMat, lootClass, lootNotable, sanitizeChat, parseChat, EMOTES, EMOTE_COOLDOWN, EMOTE_TIME, emoteById, emoteByCmd, npcReply, addressedToAssistant, assistantReply
   };
@@ -3886,8 +3917,15 @@ const Logic = (function () {
   const SB_URL = 'https://cpxxgdsbyxvlwxcebxlb.supabase.co';
   const SB_KEY = 'sb_publishable_LKeHRLjN5BZvGtwsrwmw3A_A12o-469';   // คีย์สาธารณะ ใส่ในหน้าเว็บได้ ความปลอดภัยอยู่ที่กฎของตาราง (RLS) ฝั่ง Supabase
   const AUTH_KEY = 'aetheria_auth', SYNC_PREFIX = 'aetheria_sync_', IMPORT_PREFIX = 'aetheria_imported_';
+  // รหัสหน้าเกมนี้ (ใช้บอกว่าเครื่อง/แท็บไหนถือล็อกอินของบัญชี) — เก็บใน sessionStorage: รีเฟรชหน้าเดิมยังเป็นรหัสเดิม แท็บใหม่/เครื่องอื่นได้รหัสใหม่
+  function devId() {
+    let v = null;
+    try { v = sessionStorage.getItem('aetheria_dev'); } catch (e) { /* ไม่เป็นไร */ }
+    if (!v) { v = Math.random().toString(36).slice(2, 10) + Date.now().toString(36); try { sessionStorage.setItem('aetheria_dev', v); } catch (e) { /* ไม่เป็นไร */ } }
+    return v;
+  }
   const CLOUD = { on: false, session: null, status: 'login', msg: '', synced: {}, seen: {}, force: [], timer: 0, busy: false, again: false, lastRun: 0, pulled: false,
-    claim: null, ka: false, dev: Math.random().toString(36).slice(2, 10) + Date.now().toString(36) };   // 0.59: claim = เครื่องนี้เป็นเจ้าของตัวละครที่เล่นอยู่ { ckey, okey, at } · dev = รหัสหน้าเกมนี้ · ka = รอบส่งตอนปิดหน้า (keepalive)
+    claim: null, ka: false, dev: devId(), lock: true, lockAt: null, lockWrote: 0, tryAt: '' };   // 0.59: claim = เครื่องนี้เป็นเจ้าของตัวละครที่เล่นอยู่ { ckey, okey, at } · dev = รหัสหน้าเกมนี้ · ka = รอบส่งตอนปิดหน้า (keepalive)
   const auth = { mode: 'in', email: '', busy: false };
   const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
   const lsPut = (k, v) => { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } };
@@ -4071,6 +4109,72 @@ const Logic = (function () {
       saveSynced();
     }
   }
+  // ---------- 1 บัญชี = เล่นได้ทีละเครื่อง (0.59.1) ----------
+  // เครื่องที่ล็อกอินอยู่เขียนแถว 's:lock' ทุก ~20 วิ · เครื่องที่ล็อกอินทีหลังเห็นล็อกยังสด = เข้าไม่ได้ + เขียนแถว 's:try' ให้เครื่องที่เล่นอยู่เห็นแล้วแจ้งเตือน
+  // ล็อกหมดอายุเองถ้าเงียบเกิน 90 วิ (ปิดเครื่อง/แอปถูกพัก) และปล่อยทันทีเมื่อออกจากระบบ/ปิดแท็บ
+  function showAlert(msg) {
+    const b = $('alertBar'); if (!b) return;
+    b.textContent = '⚠ ' + msg; b.classList.remove('hidden');
+    clearTimeout(showAlert.t); showAlert.t = setTimeout(() => b.classList.add('hidden'), 20000);
+    addLog('⚠ ' + msg, 'cmd');
+    try { sfx('quest'); } catch (e) { /* ไม่เป็นไร */ }
+  }
+  async function lockWrite(tok, key, data) {
+    const r = await sbFetch('/rest/v1/ae_saves?on_conflict=user_id,key&select=key,updated_at', { method: 'POST', token: tok, headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+      body: [{ user_id: CLOUD.session.uid, key, data, updated_at: new Date().toISOString() }] });
+    if (!r.ok) throw cloudErr(r);
+    const x = Array.isArray(r.json) && r.json[0];
+    return x && x.updated_at || null;
+  }
+  async function lockBeat(tok) {
+    CLOUD.lockAt = await lockWrite(tok, L.SESSION_LOCK_KEY, { dev: CLOUD.dev, t: Date.now() });
+    CLOUD.lockWrote = Date.now();
+  }
+  // ตอนล็อกอิน: ล็อกว่าง/เป็นของเรา → ถือล็อกแล้วเข้าได้ · ล็อกสดของเครื่องอื่น → ปฏิเสธ + แจ้งเครื่องนั้น (คืน {busy, waitSec})
+  async function sessionAcquire() {
+    if (!CLOUD.lock) return { ok: true };
+    const tok = await ensureToken();
+    const r = await sbFetch('/rest/v1/ae_saves?select=key,data,updated_at&key=in.("' + L.SESSION_LOCK_KEY + '","' + L.SESSION_TRY_KEY + '")', { token: tok });
+    if (!r.ok) throw cloudErr(r);
+    const rows = Array.isArray(r.json) ? r.json : [], lk = rows.find(x => x.key === L.SESSION_LOCK_KEY), tr = rows.find(x => x.key === L.SESSION_TRY_KEY);
+    const st = L.sessionLockState(lk && lk.data, CLOUD.dev, Date.now());
+    if (st.state === 'busy') { await lockWrite(tok, L.SESSION_TRY_KEY, { dev: CLOUD.dev, t: Date.now() }); return { busy: true, waitSec: st.waitSec }; }
+    CLOUD.tryAt = tr ? tr.updated_at : '';
+    await lockBeat(tok);
+    return { ok: true };
+  }
+  // ปล่อยล็อก (ออกจากระบบ/ปิดแท็บ) — ลบเฉพาะถ้ายังเป็นของเครื่องนี้
+  function sessionRelease(keepalive) {
+    if (!CLOUD.lock || !CLOUD.lockAt || !CLOUD.session) return Promise.resolve();
+    const tok = CLOUD.session.access; CLOUD.lockAt = null;
+    CLOUD.ka = !!keepalive;
+    const p = sbFetch('/rest/v1/ae_saves?user_id=eq.' + CLOUD.session.uid + '&key=eq.' + encodeURIComponent(L.SESSION_LOCK_KEY) + '&data->>dev=eq.' + encodeURIComponent(CLOUD.dev), { method: 'DELETE', token: tok });
+    CLOUD.ka = false;
+    return p;
+  }
+  // รอบซิงก์ทุกครั้ง: เช็กว่าล็อกยังเป็นของเรา (ถ้าไม่ = ถูกอีกเครื่องแย่งไปตอนเราเงียบนานเกิน 90 วิ → ออกจากระบบ) + แจ้งถ้ามีคนพยายามเข้า + ต่ออายุล็อก
+  // คืน true = ถูกแย่งล็อก (ออกจากระบบแล้ว ให้หยุดทำต่อ)
+  async function sessionCheck(meta, tok) {
+    if (!CLOUD.lock) return false;
+    const lk = meta.find(x => x.key === L.SESSION_LOCK_KEY), tr = meta.find(x => x.key === L.SESSION_TRY_KEY);
+    if (CLOUD.lockAt && lk && lk.updated_at !== CLOUD.lockAt) { sessionKicked(); return true; }
+    if (!CLOUD.lockAt && lk) {   // ไม่เคยได้ล็อก (ตอนล็อกอินเน็ตเช็กไม่ได้) แต่ตอนนี้มีเครื่องอื่นถืออยู่ → เป็นเครื่องที่มาทีหลัง
+      const row = await sbFetch('/rest/v1/ae_saves?select=key,data&key=in.("' + L.SESSION_LOCK_KEY + '")', { token: tok });
+      const cur = row.ok && Array.isArray(row.json) ? row.json.find(x => x.key === L.SESSION_LOCK_KEY) : null;
+      if (cur && L.sessionLockState(cur.data, CLOUD.dev, Date.now()).state === 'busy') { sessionKicked(); return true; }
+    }
+    if (tr && CLOUD.tryAt !== tr.updated_at) {
+      CLOUD.tryAt = tr.updated_at;
+      showAlert('มีคนพยายามเข้าสู่ระบบด้วยบัญชีนี้จากอีกเครื่อง ระบบปฏิเสธไว้แล้ว ถ้าไม่ใช่คุณ ควรเปลี่ยนรหัสผ่านอีเมล');
+    }
+    if (!CLOUD.lockAt || Date.now() - CLOUD.lockWrote > 15000) await lockBeat(tok);
+    return false;
+  }
+  function sessionKicked() {
+    if (active) save();   // เก็บในเครื่องไว้ (ไม่ส่งขึ้นเน็ต: เครื่องที่ใหม่กว่าเป็นของจริง ครั้งหน้าที่ล็อกอินระบบจะเทียบความคืบหน้าให้เอง)
+    lsDel(AUTH_KEY);
+    toLogin('⛔ บัญชีนี้ถูกเข้าสู่ระบบจากอีกเครื่อง คุณถูกออกจากระบบแล้ว (ความคืบหน้าล่าสุดที่เล่นไว้ยังเก็บในเครื่องนี้)');
+  }
   // ซิงก์: ดึงของเน็ต (ถ้า pull) แล้วส่งสิ่งที่เปลี่ยนขึ้นไป · ห้ามส่งก่อนดึงสำเร็จอย่างน้อยหนึ่งครั้ง (กันข้อมูลเริ่มต้นไปทับของจริงบนเน็ต)
   async function cloudRun(opt) {
     opt = opt || {};
@@ -4083,6 +4187,7 @@ const Logic = (function () {
       const mr = await sbFetch('/rest/v1/ae_saves?select=key,updated_at', { token: tok });
       if (!mr.ok) throw cloudErr(mr);
       const meta = Array.isArray(mr.json) ? mr.json : [];
+      if (await sessionCheck(meta, tok)) return;
       const cl = CLOUD.claim, actKey = active ? L.cloudCharKey(active.acc.id, active.ch.id) : null;
       const mine = !!(cl && actKey && cl.ckey === actKey);
       const lost = mine && L.cloudClaimLost(meta, cl.okey, cl.at), claiming = mine && !cl.at;
@@ -4115,8 +4220,9 @@ const Logic = (function () {
     else { clearCloudTimer(); cloudRun({}); }                                                                  // กลับมา: เช็กทันทีว่าเครื่องอื่นเล่นต่อไปหรือแย่งเล่นอยู่ไหม
   });
   window.addEventListener('online', () => cloudRun({}));
-  window.addEventListener('pagehide', () => { if (!CLOUD.on) return; if (active) save(); clearCloudTimer(); cloudRun({ pull: false, hide: true }); });
+  window.addEventListener('pagehide', () => { if (!CLOUD.on) return; if (active) save(); clearCloudTimer(); cloudRun({ pull: false, hide: true }); sessionRelease(true); });
   setInterval(() => { if (CLOUD.on && !CLOUD.busy && CLOUD.status === 'offline') cloudRun({ pull: false }); }, 20000);
+  setInterval(() => { if (CLOUD.on && CLOUD.lock && !CLOUD.busy && CLOUD.status !== 'offline') cloudRun({ pull: false }); }, 20000);   // เต้นหัวใจ: ต่ออายุล็อกบัญชี + ดูว่ามีคนพยายามเข้าไหม
 
   // ---------- หน้าล็อกอิน / สมัคร / ออกจากระบบ ----------
   function openLogin(note) {
@@ -4164,6 +4270,17 @@ const Logic = (function () {
     document.body.classList.add('intitle');
     openModal('กำลังโหลด', '<p>☁️ กำลังโหลดตัวละครของคุณจากเน็ต…</p>', [], 'title');
     paintCloud();
+    // 1 บัญชีเล่นได้ทีละเครื่อง: เช็กล็อกก่อนดึงตัวละคร (เครื่องอื่นกำลังเล่นอยู่ = เข้าไม่ได้)
+    try {
+      const lk = await sessionAcquire();
+      if (lk.busy) {
+        lsDel(AUTH_KEY);
+        return toLogin('⛔ บัญชีนี้กำลังเล่นอยู่ที่อีกเครื่อง จึงเข้าสู่ระบบซ้ำไม่ได้ (เครื่องที่เล่นอยู่ได้รับแจ้งแล้ว) · ถ้าเครื่องนั้นปิดไปแล้ว รออีกประมาณ ' + lk.waitSec + ' วินาทีแล้วลองใหม่ หรือกด ออกจากระบบ ที่เครื่องนั้น');
+      }
+    } catch (e) {
+      if (e && e.expired) { lsDel(AUTH_KEY); return toLogin('การเข้าสู่ระบบหมดอายุ กรุณาเข้าสู่ระบบอีกครั้ง'); }
+      // เน็ตเช็กล็อกไม่ได้: ไปต่อ (ถ้าไม่มีเน็ตจริง ขั้นดึงตัวละครด้านล่างจะบอกให้ลองใหม่เอง) รอบซิงก์ถัดไปจะเช็กล็อกอีกครั้ง
+    }
     await cloudRun({ first: true });
     if (!CLOUD.session) return;   // ถูกเด้งกลับไปหน้าล็อกอิน (เซสชันหมดอายุ)
     if (!CLOUD.pulled && !profiles.accounts.length) {   // ยังไม่เคยดึงสำเร็จและในเครื่องก็ว่าง: ห้ามเริ่มสร้างใหม่ (กลัวไปทับของจริงบนเน็ต) ให้ลองใหม่
@@ -4177,7 +4294,7 @@ const Logic = (function () {
   }
   function toLogin(note) {
     clearCloudTimer();
-    CLOUD.on = false; CLOUD.session = null; CLOUD.claim = null; CLOUD.pulled = false; NS = '';
+    CLOUD.on = false; CLOUD.session = null; CLOUD.claim = null; CLOUD.lockAt = null; CLOUD.lockWrote = 0; CLOUD.tryAt = ''; CLOUD.pulled = false; NS = '';
     profiles = L.emptyProfiles();
     if (active) { active = null; state = L.newGameState(); setAuto(false, ''); enterMap(state.player.map); game.deadT = 0; game.combatT = 0; rt.cd = {}; }
     mpSync();
@@ -4192,6 +4309,7 @@ const Logic = (function () {
     clearCloudTimer();
     if (CLOUD.busy) await new Promise(r => setTimeout(r, 1500));
     await cloudRun({ pull: false });
+    try { await sessionRelease(false); } catch (e) { /* ล็อกหมดอายุเองใน 90 วิ */ }
     lsDel(AUTH_KEY);
     toLogin('ออกจากระบบแล้ว');
   }
