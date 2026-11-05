@@ -62,6 +62,9 @@ body.intitle #chatBar,body.intitle #bChat{display:none}
 .act.off{opacity:.55}
 .act.on{background:radial-gradient(circle at 35% 25%,#9cc8ff,#2f6fe0);color:#fff;border-color:#e6f1ff}
 #autoLine{margin-top:4px;color:#9be7ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#dtrack{margin-top:2px;color:#9fd8ff}
+#dtrack:empty{display:none}
+#dtrack.d-ready{color:#7dff9a;font-weight:bold}
 #qtrack.q-ready{color:#7dff9a;font-weight:bold}
 #qtrack.q-active{color:var(--accent)}
 #qtrack.q-wait{color:#aab6cc}
@@ -257,7 +260,7 @@ body.hide-skill #actions{width:auto!important;height:auto!important;display:bloc
 body.hide-skill #tgSkill{position:static}
 body.intitle .tg{visibility:hidden}
 /* จอสัมผัสทุกขนาด (0.59.1): ข้อความในกล่องสถานะบรรทัดเดียว (ไม่ดันกล่องให้สูง) · ข้อความเกมโชว์แค่ล่าสุด 4 บรรทัด */
-body.touch #qtrack,body.touch #autoLine,body.touch #buffLine,body.touch #ver{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.touch #qtrack,body.touch #dtrack,body.touch #stag,body.touch #autoLine,body.touch #buffLine,body.touch #ver{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 body.touch #qtrack{margin-top:4px;padding-top:4px}
 body.touch #log div:nth-last-child(n+5){display:none}
 /* มือถือแนวตั้ง: แถบปุ่มบนสุดเต็มความกว้าง · สถานะ + แผนที่ย่ออยู่ใต้แถบ · ข้อความเหนือจอย/ปุ่มสกิล */
@@ -282,7 +285,7 @@ body.touch #log div:nth-last-child(n+5){display:none}
   #hud .bar>span{line-height:12px;font-size:9.5px}
   #jobBar{height:9px!important}#jobBar>span{display:none}
   #hud .small{font-size:11px}
-  #qtrack,#ver,#buffLine{display:none}
+  #qtrack,#dtrack,#stag,#ver,#buffLine{display:none}
   #topRight{padding:3px 5px;gap:3px;top:max(6px,env(safe-area-inset-top))}
   #topRight .btn{min-width:38px;min-height:38px;font-size:16px;padding:2px 5px}
   #topRight .sep{margin:3px 2px}
@@ -384,6 +387,17 @@ noscript{position:fixed;inset:0;display:flex;align-items:center;justify-content:
   .skwrap>.detail .acts{margin-top:4px}
   .skwrap>.detail .btn.sm{min-height:34px;padding:2px 10px;font-size:13px}
 }
+.mil{margin-top:8px}.mil .milrow{display:flex;flex-direction:column;gap:1px;padding:4px 0;border-top:1px dashed #c3d6f4}.mil .milrow:first-of-type{border-top:0}
+.mil .milnm{font-weight:bold;font-size:13px}.mil .milnm.max{color:#c07a00}
+.eqpower{margin:4px 0;padding:6px 10px}.eqpower .small{margin:1px 0}.small.dim{opacity:.7}
+#stag{margin-top:2px;color:#ffd9a0}#stag:empty{display:none}#stag.s-ready{color:#ffe14a;font-weight:bold}
+.scene{display:flex;gap:12px;align-items:flex-start;min-height:92px}
+.scene .pt{width:76px;height:76px;flex:none;border-radius:50%;background:#dcebff;border:3px solid #9bbbe8;overflow:hidden}
+.scene .pt svg{display:block;width:100%;height:100%}
+.scene .sp{flex:1}.scene .sp b{display:block;margin-bottom:4px;color:#2f5aa8}
+.scene .sp p{margin:0;font-size:16px;line-height:1.55}
+.scene.narr{display:block}.scene.narr p{font-style:italic;color:#4a5a78;text-align:center;padding:10px 6px}
+.scene .pg{margin-top:8px;font-size:12px;opacity:.7;text-align:right}
 </style>
 </head>
 <body>
@@ -398,6 +412,8 @@ noscript{position:fixed;inset:0;display:flex;align-items:center;justify-content:
   <div class="bar" id="jobBar"><i></i><span></span></div>
   <div class="small">Zeny: <b id="zeny">0</b></div>
   <div id="qtrack" class="small"></div>
+  <div id="dtrack" class="small"></div>
+  <div id="stag" class="small"></div>
   <div id="autoLine" class="small hidden"></div>
   <div id="buffLine" class="small hidden"></div>
   <div id="ver"></div>
@@ -460,7 +476,7 @@ noscript{position:fixed;inset:0;display:flex;align-items:center;justify-content:
 // =====================================================================
 const Logic = (function () {
   'use strict';
-  const VERSION = '0.60.0';
+  const VERSION = '0.63.0';
   const SAVE_VERSION = 4;
   const MAX_LEVEL = 150;   // 0.13: ขยายจาก 50 เป็น 99 · 0.16: ขยายเป็น 120 · 0.33: ขยายเป็น 150
   const MAP_W = 1600, MAP_H = 1200;
@@ -2315,6 +2331,8 @@ const Logic = (function () {
       const rf = refineBonus(e[slot], p.refine && p.refine[e[slot]]);   // บวกจากการตีบวก (0.17)
       b.atk += rf.atk; b.def += rf.def; b.hp += rf.hp;
     }
+    const pw = powerBonus(p);   // ขั้นสเตตัส + เซ็ตอุปกรณ์ + ตีบวกถึงขั้น (0.62)
+    for (const k in pw) b[k] += pw[k];
     return b;
   }
   // โบนัสสเตตัส 6 ตัวจากของที่สวม (ใช้แสดงผล เช่น "STR 20 (+3)")
@@ -2349,7 +2367,7 @@ const Logic = (function () {
     return { level: 1, exp: 0, jobLevel: 1, jobExp: 0, skillSlots: [], hp: s.maxHp, sp: s.maxSp, zeny: 0, x: sp.x, y: sp.y, job: 'novice', map: 'plains',
              stats: baseStats(), skillLv: {}, equip: emptyEquip(), cards: { weapon: [], armor: [] }, refine: {} };
   }
-  function newGameState() { return { player: newPlayer(), inv: { potion: 3 }, quests: {} }; }
+  function newGameState() { return { player: newPlayer(), inv: { potion: 3 }, quests: {}, daily: null, story: newStory() }; }
 
   // ได้ EXP: ทั้ง Base EXP (เลเวลตัวละคร) และ Job EXP (Job Level — จำนวนเท่ากัน คนละแถบ) คืน { levels, jobLevels }
   function gainExpEx(p, amount) {
@@ -3027,6 +3045,352 @@ const Logic = (function () {
     return out;
   }
 
+  // ---------- ภารกิจประจำวัน (0.61) ----------
+  // ข้อมูลล้วน: daily = { day, list:[{k,t,n,p,c}], bonus, streak, lastBonus }
+  //   day = เลขวัน (ฝั่งเกมคำนวณจากเวลาเครื่อง เที่ยงคืนตามเวลาท้องถิ่น) · k = ชนิด killAny|killMap|boss|refine · t = รหัสมอน (killMap) · n = เป้า · p = ทำไปแล้ว · c = รับรางวัลแล้ว
+  const DAILY_COUNT = 3;
+  const DAILY_STREAK_GOAL = 7;
+  const DAILY_EXP_FRAC = { killAny: 0.05, killMap: 0.07, boss: 0.10, refine: 0.05 };
+  const DAILY_BOSS_MIN_LEVEL = 8, DAILY_REFINE_MIN_LEVEL = 15;
+
+  function dailyPotion(level) { return level >= 60 ? 'megaPotion' : level >= 20 ? 'bigPotion' : 'potion'; }
+  function dailyTarget(kind, level) {
+    if (kind === 'killAny') return 15 + Math.floor(level / 4);
+    if (kind === 'killMap') return 8 + Math.floor(level / 8);
+    return 1;
+  }
+  // มอนปกติ (ไม่ใช่บอส) ที่เลเวลใกล้ผู้เล่น: ช่วง level-10 .. level+2 ถ้าไม่มีเลย เอาตัวที่ใกล้ที่สุด
+  function dailyMonsterPool(level) {
+    const all = Object.keys(MONSTERS).filter(id => !MONSTERS[id].boss && !MONSTERS[id].hidden);
+    const pool = all.filter(id => MONSTERS[id].level >= level - 10 && MONSTERS[id].level <= level + 2);
+    if (pool.length) return pool;
+    all.sort((a, b) => Math.abs(MONSTERS[a].level - level) - Math.abs(MONSTERS[b].level - level));
+    return all.slice(0, 3);
+  }
+  function dailyNew(level, rng) {
+    const pool = dailyMonsterPool(level), pick = () => pool[Math.floor(rng() * pool.length) % pool.length];
+    const list = [{ k: 'killAny', t: '', n: dailyTarget('killAny', level), p: 0, c: false }];
+    const t1 = pick();
+    list.push({ k: 'killMap', t: t1, n: dailyTarget('killMap', level), p: 0, c: false });
+    const opts = [];
+    if (level >= DAILY_BOSS_MIN_LEVEL) opts.push('boss');
+    if (level >= DAILY_REFINE_MIN_LEVEL) opts.push('refine');
+    if (opts.length) {
+      const k = opts[Math.floor(rng() * opts.length) % opts.length];
+      list.push({ k, t: '', n: 1, p: 0, c: false });
+    } else {
+      let t2 = pick(), guard = 0; while (t2 === t1 && pool.length > 1 && guard++ < 20) t2 = pick();
+      list.push({ k: 'killMap', t: t2, n: dailyTarget('killMap', level), p: 0, c: false });
+    }
+    return list;
+  }
+  // เรียกทุกครั้งที่เปิดเกม/เปลี่ยนวัน: วันเดิม = คืนของเดิม · วันใหม่ = สุ่มชุดใหม่ (คงสถิติติดต่อกันไว้)
+  function dailyEnsure(daily, level, dayNo, rng) {
+    if (daily && daily.day === dayNo) return daily;
+    return { day: dayNo, list: dailyNew(level, rng), bonus: false, streak: daily ? daily.streak : 0, lastBonus: daily ? daily.lastBonus : 0 };
+  }
+  // streak ที่ยังมีผล ณ วันนี้ (ขาดวัน = 0)
+  function dailyStreakNow(daily, dayNo) { return daily && daily.streak > 0 && (daily.lastBonus === dayNo || daily.lastBonus === dayNo - 1) ? daily.streak : 0; }
+  // เหตุการณ์: { kind:'kill', id } หรือ { kind:'refine' } คืนรายการที่ความคืบหน้าเปลี่ยน
+  function dailyEvent(daily, ev) {
+    const out = [];
+    if (!daily) return out;
+    daily.list.forEach((d, i) => {
+      if (d.c || d.p >= d.n) return;
+      let hit = false;
+      if (ev.kind === 'kill') {
+        const m = MONSTERS[ev.id];
+        hit = d.k === 'killAny' || (d.k === 'killMap' && d.t === ev.id) || (d.k === 'boss' && !!(m && m.boss));
+      } else if (ev.kind === 'refine') hit = d.k === 'refine';
+      if (hit) { d.p++; out.push({ i, p: d.p, n: d.n, done: d.p >= d.n }); }
+    });
+    return out;
+  }
+  function dailyReward(level, kind) {
+    const items = {}; items[dailyPotion(level)] = level >= 60 ? 2 : 3;
+    return { exp: Math.round(expToNext(level) * (DAILY_EXP_FRAC[kind] || 0.05)), zeny: 50 + level * (kind === 'boss' ? 25 : 12), items };
+  }
+  function dailyBonusReward(level, streakDone) {
+    const items = {}; items[dailyPotion(level)] = 5;
+    const r = { exp: Math.round(expToNext(level) * 0.15), zeny: 300 + level * 60, items };
+    if (streakDone) {   // ครบ 7 วันติดต่อกัน
+      r.exp += Math.round(expToNext(level) * 0.40); r.zeny += level * 300;
+      r.items[dailyPotion(level)] += 5;
+    }
+    return r;
+  }
+  function dailyGive(p, inv, r) {
+    const g = gainExpEx(p, r.exp);
+    p.zeny += r.zeny;
+    for (const k in r.items) if (r.items[k] > 0) addItem(inv, k, r.items[k]);
+    return g;
+  }
+  function dailyClaim(p, inv, daily, i) {
+    const d = daily && daily.list[i];
+    if (!d || d.c || d.p < d.n) return { ok: false };
+    d.c = true;
+    const reward = dailyReward(p.level, d.k), g = dailyGive(p, inv, reward);
+    return { ok: true, reward, levelsGained: g.levels, jobLevelsGained: g.jobLevels };
+  }
+  function dailyAllClaimed(daily) { return !!daily && daily.list.length > 0 && daily.list.every(d => d.c); }
+  function dailyClaimBonus(p, inv, daily, dayNo) {
+    if (!dailyAllClaimed(daily) || daily.bonus) return { ok: false };
+    daily.bonus = true;
+    daily.streak = daily.lastBonus === dayNo - 1 && daily.streak > 0 ? daily.streak + 1 : 1;
+    daily.lastBonus = dayNo;
+    const streakDone = daily.streak >= DAILY_STREAK_GOAL;
+    const reward = dailyBonusReward(p.level, streakDone), g = dailyGive(p, inv, reward);
+    const streak = daily.streak;
+    if (streakDone) daily.streak = 0;
+    return { ok: true, reward, streakDone, streak, levelsGained: g.levels, jobLevelsGained: g.jobLevels };
+  }
+  function dailyMapOf(monsterId) {   // ชื่อแผนที่แรกที่มีมอนชนิดนี้ (ไว้บอกผู้เล่นว่าไปล่าที่ไหน)
+    for (const mid in MAPS) for (const a of MAPS[mid].areas || []) if (a.id === monsterId) return MAPS[mid].name;
+    return '';
+  }
+  function dailyText(d) {
+    const name = d.t && MONSTERS[d.t] ? MONSTERS[d.t].name : '';
+    if (d.k === 'killAny') return 'ล่ามอนสเตอร์ตัวไหนก็ได้ ' + d.n + ' ตัว';
+    if (d.k === 'killMap') { const mp = dailyMapOf(d.t); return 'ล่า ' + name + ' ' + d.n + ' ตัว' + (mp ? ' (ที่' + mp + ')' : ''); }
+    if (d.k === 'boss') return 'ปราบบอสตัวไหนก็ได้ 1 ตัว';
+    return 'ตีบวกอุปกรณ์ 1 ครั้ง (สำเร็จหรือพลาดก็นับ)';
+  }
+  function sanitizeDaily(o) {
+    if (!o || typeof o !== 'object' || !Array.isArray(o.list) || !isFinite(o.day)) return null;
+    const list = [];
+    for (const d of o.list.slice(0, DAILY_COUNT)) {
+      if (!d || !DAILY_EXP_FRAC[d.k]) return null;
+      const t = d.k === 'killMap' ? d.t : '';
+      if (d.k === 'killMap' && !MONSTERS[t]) return null;
+      const n = Math.max(1, Math.min(999, Math.floor(Number(d.n)) || 1));
+      list.push({ k: d.k, t, n, p: Math.max(0, Math.min(n, Math.floor(Number(d.p)) || 0)), c: !!d.c });
+    }
+    if (list.length !== DAILY_COUNT) return null;
+    const ni = (v, max) => Math.max(0, Math.min(max, Math.floor(Number(v)) || 0));
+    return { day: Math.floor(Number(o.day)), list, bonus: !!o.bonus, streak: ni(o.streak, DAILY_STREAK_GOAL), lastBonus: ni(o.lastBonus, 1e7) };
+  }
+
+  // ---------- โบนัสพลัง 3 แบบ (0.62) ----------
+  // (1) ขั้นพลังสเตตัส: นับเฉพาะแต้มที่ผู้เล่นแจกเอง (p.stats) ไม่นับของสวม · ค่าในตารางคือ "โบนัสรวม ณ ขั้นที่ถึง" (ไม่ใช่บวกซ้อนทีละขั้น)
+  // (2) เซ็ตอุปกรณ์: นับชิ้นที่สวมของธีมเดียวกัน (ของรุ่นพิเศษ v_* นับเป็นชิ้นเดียวกับต้นแบบ) · มีหลายธีมปนกัน = ใช้เฉพาะธีมที่ครบมากสุด
+  // (3) ตีบวก: ต่อชิ้นที่ +5/+7/+9/+10 ตามประเภทของ + ตีบวกรวมทุกช่อง 40/60/80
+  // ผลลัพธ์ทั้งหมดเป็นคีย์โบนัสเดิม (BONUS_KEYS) แล้วรวมเข้า gearBonus() จึงเข้า playerStats/powerScore/คำแนะนำอุปกรณ์เองโดยไม่ต้องแก้ที่อื่น
+  const STAT_TIERS = [30, 50, 70, 90, 99];
+  const STAT_MILESTONE = {
+    str: { title: 'เหล็กกล้า', by: 'บอร์ก',      at: [{ atkPct: 0.02 }, { atkPct: 0.04 }, { atkPct: 0.06 }, { atkPct: 0.09 }, { atkPct: 0.12 }] },
+    agi: { title: 'สายลม',     by: 'ไอริส',      at: [{ fleeAdd: 4 }, { fleeAdd: 8 }, { fleeAdd: 12 }, { fleeAdd: 18 }, { fleeAdd: 25 }] },
+    vit: { title: 'ศิลา',      by: 'เคโรน',      at: [{ hpPct: 0.02 }, { hpPct: 0.04 }, { hpPct: 0.07 }, { hpPct: 0.10, regenAdd: 0.001 }, { hpPct: 0.14, regenAdd: 0.002 }] },
+    int: { title: 'ปัญญา',     by: 'ลิบรา',      at: [{ sp: 15 }, { sp: 30 }, { sp: 55 }, { sp: 85 }, { sp: 120 }] },
+    dex: { title: 'ดวงตา',     by: 'พรานเฟรด',   at: [{ hitAdd: 5, critAdd: 1 }, { hitAdd: 10, critAdd: 2 }, { hitAdd: 15, critAdd: 3 }, { hitAdd: 22, critAdd: 4 }, { hitAdd: 30, critAdd: 6 }] },
+    luk: { title: 'โชคชะตา',   by: 'ยัสมิน',     at: [{ critAdd: 2 }, { critAdd: 4 }, { critAdd: 6, expPct: 0.02 }, { critAdd: 9, expPct: 0.03 }, { critAdd: 12, expPct: 0.05 }] }
+  };
+  function statTierOf(v) { let t = 0; for (const x of STAT_TIERS) if (v >= x) t++; return t; }
+  // รายการสำหรับแสดงผล: [{ key, title, by, value, tier, bonus, next }] (next = แต้มของขั้นถัดไป หรือ null)
+  function statMilestones(p) {
+    const st = p.stats || baseStats();
+    return STAT_KEYS.map(k => {
+      const m = STAT_MILESTONE[k], t = statTierOf(st[k]);
+      return { key: k, title: m.title, by: m.by, value: st[k], tier: t, bonus: t ? m.at[t - 1] : {}, next: t < STAT_TIERS.length ? STAT_TIERS[t] : null, nextBonus: t < STAT_TIERS.length ? m.at[t] : null };
+    });
+  }
+
+  // เซ็ตอุปกรณ์: g = เกรดชุด 1..8 · base = รหัสต้นแบบของทุกชิ้นในธีม (อาวุธ 3 สาย เกราะ โล่ ผ้าคลุม รองเท้า หมวก เครื่องประดับ)
+  const SETS = [
+    { id: 'frost',  name: 'ชุดน้ำแข็ง', g: 1, base: ['frostBlade', 'frostStaff', 'frostBow', 'frostArmor', 'frostShield', 'snowMantle', 'frostBoots', 'frostHood', 'hatSnowFur', 'hatIceQueen', 'hatGlacierHelm', 'hatTitanHood', 'frostCloak', 'accIceFlake', 'accYetiRing', 'accTitanSeal', 'accGlacierBand'] },
+    { id: 'flame',  name: 'ชุดเพลิง',   g: 2, base: ['flameBlade', 'flameStaff', 'flameBow', 'flameArmor', 'flameShield', 'flameMantle', 'flameBoots', 'hatKinnari', 'hatSingha', 'hatLizard', 'hatLavaCrown', 'hatMonkHood', 'hatKuman', 'accKinnariWing', 'accKhotNecklace', 'accEmberScale', 'accDragonRing', 'accTakrut', 'accPrayerBeads'] },
+    { id: 'shadow', name: 'ชุดเงามืด',  g: 3, base: ['shadowBlade', 'shadowStaff', 'shadowBow', 'shadowArmor', 'shadowShield', 'shadowMantle', 'shadowBoots', 'hatShadowHelm', 'hatWraithMask', 'accBoneChain', 'accLichRing'] },
+    { id: 'storm',  name: 'ชุดสายฟ้า',  g: 4, base: ['stormBlade', 'stormStaff', 'stormBow', 'stormArmor', 'stormShield', 'stormMantle', 'stormBoots', 'hatStormCrown', 'hatStormFeather', 'hatLankaCrown', 'hatVanonCap', 'accCloudEar', 'accThunderPendant', 'accLankaGem', 'accBrahmaBand'] },
+    { id: 'void',   name: 'ชุดอเวจี',   g: 5, base: ['voidBlade', 'voidStaff', 'voidBow', 'voidArmor', 'voidShield', 'voidMantle', 'voidBoots', 'hatDemonHorn', 'hatAbyssCrown', 'hatGradCap', 'hatPrincipalHat', 'accAbyssEye', 'accVoidRing', 'accWhistlePin', 'accSchoolBadge'] },
+    { id: 'god',    name: 'ชุดเทพเจ้า', g: 6, base: ['godBlade', 'godStaff', 'godBow', 'godArmor', 'godShield', 'godMantle', 'godBoots', 'hatGodHalo', 'hatDragonCrown', 'accGoldWing', 'accGodScale'] },
+    { id: 'time',   name: 'ชุดกาลเวลา', g: 7, base: ['timeBlade', 'timeStaff', 'timeBow', 'timeArmor', 'timeShield', 'timeMantle', 'timeBoots', 'hatStarCrown', 'hatClockHalo', 'accHourglass', 'accTimeRing'] },
+    { id: 'cos',    name: 'ชุดจักรวาล', g: 8, base: ['cosBlade', 'cosStaff', 'cosBow', 'cosArmor', 'cosShield', 'cosMantle', 'cosBoots', 'hatNebulaCrown', 'hatCometHalo', 'hatScholarCap', 'hatBookCrown', 'accWhaleCharm', 'accAetherRing', 'accInkPendant', 'accLibraryCard'] }
+  ];
+  const SET_OF_BASE = {};
+  for (const s of SETS) for (const b of s.base) SET_OF_BASE[b] = s;
+  const SET_PIECES = [3, 5, 8];
+  function baseItemId(id) { return String(id).replace(/^v_[a-z]+_/, ''); }
+  function setOfItem(id) { return SET_OF_BASE[baseItemId(id)] || null; }
+  // โบนัสเซ็ต ณ จำนวนชิ้น n ของชุดเกรด g (สะสมตามขั้น 3/5/8)
+  function setBonusAt(g, n) {
+    const b = {};
+    const add = (k, v) => { b[k] = Math.round(((b[k] || 0) + v) * 1000) / 1000; };
+    if (n >= 3) add('hpPct', 0.02 + 0.005 * g);
+    if (n >= 5) { add('atkPct', 0.02 + 0.005 * g); add('critAdd', g); }
+    if (n >= 8) add('bossPct', 0.05 + 0.015 * g);
+    return b;
+  }
+  // ธีมที่ครบมากที่สุด (เท่ากัน = เกรดสูงกว่า) คืน { set, count, bonus } หรือ null ถ้ายังไม่ถึง 3 ชิ้น · other = ธีมอื่นที่มีชิ้นสวมอยู่ (ไว้บอกผู้เล่นว่าไม่นับ)
+  function activeSet(p) {
+    const cnt = {};
+    for (const k in (p.equip || {})) { const id = p.equip[k], s = id && setOfItem(id); if (s) cnt[s.id] = (cnt[s.id] || 0) + 1; }
+    let best = null;
+    for (const s of SETS) { const n = cnt[s.id] || 0; if (n && (!best || n > best.count || (n === best.count && s.g > best.set.g))) best = { set: s, count: n }; }
+    if (!best) return null;
+    return { set: best.set, count: best.count, bonus: setBonusAt(best.set.g, best.count), counts: cnt };
+  }
+
+  // ตีบวก: ขั้น +5/+7/+9/+10 (ค่ารวม ณ ขั้น) ตามประเภทช่อง
+  const REFINE_PIECE_TIERS = [5, 7, 9, 10];
+  const REFINE_PIECE = {
+    weapon:  { key: 'atkPct',  at: [0.01, 0.02, 0.035, 0.05] },
+    armor:   { key: 'hpPct',   at: [0.01, 0.02, 0.035, 0.05] },
+    shield:  { key: 'hpPct',   at: [0.01, 0.02, 0.035, 0.05] },
+    garment: { key: 'hpPct',   at: [0.01, 0.02, 0.035, 0.05] },
+    shoes:   { key: 'fleeAdd', at: [3, 6, 10, 15] },
+    head:    { key: 'sp',      at: [10, 20, 35, 50] },
+    acc:     { key: 'critAdd', at: [1, 2, 3, 5] }
+  };
+  const REFINE_TOTAL_TIERS = [40, 60, 80], REFINE_TOTAL_PCT = [0.01, 0.02, 0.04], REFINE_TOTAL_TITLE_AT = 80;
+  function refinePieceBonus(id, level) {
+    const it = ITEMS[id], r = it && REFINE_PIECE[it.slot];
+    if (!r) return {};
+    let t = 0; for (const x of REFINE_PIECE_TIERS) if (level >= x) t++;
+    if (!t) return {};
+    const o = {}; o[r.key] = r.at[t - 1]; return o;
+  }
+  function refineTotal(p) {
+    let sum = 0;
+    for (const k in (p.equip || {})) { const id = p.equip[k]; if (id) sum += refineLevel(p, id); }
+    return sum;
+  }
+  function refineTotalTier(sum) { let t = 0; for (const x of REFINE_TOTAL_TIERS) if (sum >= x) t++; return t; }
+  function refineMilestones(p) {
+    const pieces = [];
+    for (const k in (p.equip || {})) {
+      const id = p.equip[k]; if (!id) continue;
+      const lv = refineLevel(p, id), b = refinePieceBonus(id, lv);
+      if (Object.keys(b).length) pieces.push({ slot: k, id, level: lv, bonus: b });
+    }
+    const sum = refineTotal(p), t = refineTotalTier(sum);
+    return { pieces, sum, tier: t, pct: t ? REFINE_TOTAL_PCT[t - 1] : 0, next: t < REFINE_TOTAL_TIERS.length ? REFINE_TOTAL_TIERS[t] : null, title: sum >= REFINE_TOTAL_TITLE_AT ? 'ช่างตีแห่งแก่น' : '' };
+  }
+
+  // รวมโบนัสพลังทั้ง 3 แบบเป็นออบเจ็กต์คีย์ BONUS_KEYS (gearBonus เรียกใช้)
+  function powerBonus(p) {
+    const b = {};
+    const add = o => { for (const k in o) b[k] = (b[k] || 0) + o[k]; };
+    for (const m of statMilestones(p)) add(m.bonus);
+    const s = activeSet(p); if (s) add(s.bonus);
+    const rm = refineMilestones(p);
+    for (const x of rm.pieces) add(x.bonus);
+    if (rm.pct) add({ atkPct: rm.pct, hpPct: rm.pct });
+    return b;
+  }
+
+  // ---------- สมุดเรื่อง (0.62) — ข้อมูลล้วน ภาพรวมเรื่อง 5 องก์ เปิดอ่านตามเลเวล (เควสเนื้อเรื่องจริงจะตามมาในรุ่นถัดไป) ----------
+  const STORY_ACTS = [
+    { n: 1, level: 1,   title: 'รอยร้าวบนฟ้า', where: 'ทุ่งอีเธเรีย · ทะเลทรายอรุณ · ถ้ำคริสตัล',
+      text: 'เช้าวันหนึ่ง ผู้ใหญ่บ้านเรนเห็นรอยร้าวเรืองแสงบนท้องฟ้า และมอนสเตอร์รอบหมู่บ้านก็เริ่มคลั่งผิดปกติ ครูฝึกไลล่าเอาแต่บ่นว่า "ไม่เห็นเหมือนครั้งก่อนเลย" ก่อนจะรับคุณเป็นลูกศิษย์ นักสำรวจซาฮีร์กับลีน่านักธรณีเล่าว่าสิ่งที่ค้ำโลกไว้คือ "แก่นอีเธอร์" และมันกำลังแตกเป็นชิ้น ๆ ชิ้นแรกอยู่กับจ้าวคริสตัลในถ้ำ เมื่อคุณล้มมัน ก็เห็นเงาปริศนายืนมองอยู่ไกล ๆ' },
+    { n: 2, level: 24,  title: 'ตำนานผู้พิทักษ์', where: 'แผนที่สายไทย · ทุ่งหิมะ · ธารน้ำแข็ง',
+      text: 'ฤๅษีสุทัศน์ผู้ล่วงรู้ตำนานเล่าว่า แก่นอีเธอร์ถูกแบ่งให้ "ผู้พิทักษ์" ดูแลตามภูมิภาค แต่ตอนนี้ผู้พิทักษ์หลายคนเสียสติกลายเป็นบอสที่คุณเจอ มี "ผู้เก็บแก่น" ลึกลับคอยตัดหน้าไปเก็บชิ้นส่วนก่อนคุณทุกครั้ง ระหว่างทางมีเรื่องตลกให้ขำเยอะ โดยเฉพาะช่างตีเหล็กบอร์กที่โผล่มาให้เห็นทุกเมืองจนคุณเริ่มสงสัย' },
+    { n: 3, level: 53,  title: 'เปลวไฟแห่งความแค้น', where: 'หุบเขาเพลิง · สุสานเงามืด · วัดร้างกลางไพร',
+      text: 'ซาร่าผู้เฝ้าเปลวไฟมีบ้านที่ถูกไฟจากชิ้นส่วนเผาจนหมด เธอไม่อยากแค่ปกป้อง เธออยากล้างแค้นให้ถึงที่สุด และเริ่มห่างจากทีม ไลล่าจึงยอมเล่าความจริงที่เก็บมานาน ทีมผู้กล้ารุ่นเก่าของเธอแตกสลาย เพราะความแค้นแบบเดียวกันนี้' },
+    { n: 4, level: 94,  title: 'พันธมิตรรวมพลัง', where: 'กรุงลงกา · เกาะลอยฟ้า · เหวอเวจี · ยอดเขาเทพเจ้า · โรงเรียน ปรอ.',
+      text: 'ไคลัสผู้เฝ้าเหวเคยถูกฝั่งจักรพรรดิหลอกใช้ แต่เขากลับใจและเปิดข้อมูลสำคัญให้ทีม เมื่อเทพบนยอดเขาท้าให้ทีมมาพร้อมหน้า สหายทุกคนก็มารวมกันเป็นครั้งแรก ก่อนจะพักหายใจด้วยฉากตลกที่โรงเรียน ปรอ.' },
+    { n: 5, level: 120, title: 'จักรพรรดิอีเธอร์', where: 'รอยแยกกาลเวลา · สุดขอบจักรวาล · ห้องสมุดจักรวาล',
+      text: 'ผู้พิทักษ์กาลเวลาเล่าเหตุผลของจักรพรรดิอีเธอร์ ลิบราเฉลยความจริงทั้งหมด และช่างตีเหล็กบอร์กก็เปิดเผยตัวตนที่แท้จริง ศึกสุดท้ายคือการรวมพลังของ "สหายแห่งแก่นอีเธอร์" ทุกคน เพื่อเลือกว่าจะจบเรื่องนี้ด้วยการปกป้อง หรือการแก้แค้น' }
+  ];
+  // สหายในสมุดเรื่อง: เปิดเมื่อถึงองก์ที่ตัวเองมา (บอร์ก = ปม จึงใบ้เฉย ๆ ไม่เฉลย)
+  const STORY_TEAM = [
+    { id: 'laila',  name: 'ครูฝึกไลล่า',     act: 1, role: 'ผู้นำ ครูของผู้กล้า เคยเป็นผู้กล้ารุ่นก่อน' },
+    { id: 'ren',    name: 'ผู้ใหญ่บ้านเรน',  act: 1, role: 'คนแรกที่เห็นรอยร้าวบนฟ้า' },
+    { id: 'sahir',  name: 'นักสำรวจซาฮีร์',  act: 1, role: 'นักสำรวจ รู้ทางลัดทั่วโลก' },
+    { id: 'leena',  name: 'ลีน่านักธรณี',    act: 1, role: 'นักวิจัยชิ้นส่วนแก่นอีเธอร์' },
+    { id: 'sutat',  name: 'ฤๅษีสุทัศน์',     act: 2, role: 'ปราชญ์ยุคเก่า รู้ตำนานผู้พิทักษ์' },
+    { id: 'sara',   name: 'ซาร่าผู้เฝ้าเปลวไฟ', act: 3, role: 'ผู้แก้แค้นตัวจริงของทีม' },
+    { id: 'klaus',  name: 'ไคลัสผู้เฝ้าเหว', act: 4, role: 'เคยถูกหลอกใช้ แล้วกลับใจ' },
+    { id: 'libra',  name: 'ลิบรา บรรณารักษ์', act: 5, role: 'ผู้รู้ความจริงทั้งหมด' }
+  ];
+  const STORY_TEAM_NAME = 'สหายแห่งแก่นอีเธอร์';
+  // ผู้เล่นเลเวล level อยู่องก์ไหน (องก์ล่าสุดที่เปิดแล้ว)
+  function storyActOf(level) { let a = 1; for (const s of STORY_ACTS) if (level >= s.level) a = s.n; return a; }
+  function storyUnlocked(level, n) { const s = STORY_ACTS[n - 1]; return !!s && level >= s.level; }
+
+  // ---------- ฉากเรื่อง (0.63) — ข้อมูล + กติกาล้วน ----------
+  // เรื่องเดินตามลำดับ: ฉากถัดไปเปิดเมื่อ "เควสเดิมที่ผูกไว้ทำสำเร็จ" และเลเวลถึง แล้วไปคุยกับ NPC ที่กำหนด
+  // story = { done: [รหัสฉากที่ดูจบแล้วตามลำดับ] } · ตัวเอกไม่พูด (บทของผู้เล่นเขียนเป็นบรรทัดบรรยาย w:'n')
+  // บรรทัดบท: { w: 'npc' | 'n', t: ข้อความ }  (npc = ผู้พูดคือ NPC ของฉากนี้ · n = คำบรรยาย)
+  const STORY_SCENES = [
+    { id: 'a1s1', act: 1, npc: 'elder', minLevel: 1, quest: null,
+      lines: [
+        { w: 'npc', t: 'อ้าว มาพอดีเลย! เมื่อเช้าข้าตื่นมาเจออะไรแปลก ๆ บนฟ้า เจ้าลองแหงนดูสิ' },
+        { w: 'n',   t: '(คุณแหงนมอง... มีรอยแตกเรืองแสงพาดผ่านท้องฟ้า เหมือนกระจกที่ถูกทุบจนร้าว)' },
+        { w: 'npc', t: 'เมื่อวานยังไม่มีเลยนะ! ข้าอายุเจ็ดสิบแล้ว เคยเห็นก็แค่ตอนกินเห็ดผิดต้นเมื่อสามสิบปีก่อน' },
+        { w: 'npc', t: 'แต่คราวนี้ไม่ใช่ภาพหลอนแน่ ดูสิ Poring ทั้งทุ่งหน้าบึ้งกันหมด ใครเคยเห็นวุ้นกลม ๆ ทำหน้าโกรธบ้างล่ะ?' },
+        { w: 'n',   t: '(คุณพยักหน้า มันน่ากลัวกว่าที่คิดจริง ๆ)' },
+        { w: 'npc', t: 'ข้าไม่รู้ว่าเรื่องนี้คืออะไร แต่ครูไลล่าต้องรู้แน่ นางเงียบผิดปกติมาตั้งแต่เช้าแล้ว ลองไปคุยกับนางหน่อยนะ' }
+      ],
+      reward: { exp: 30, zeny: 50, items: { potion: 2 } } },
+    { id: 'a1s2', act: 1, npc: 'jobmaster', minLevel: 10, quest: 'q4',
+      lines: [
+        { w: 'npc', t: 'ปราบราชาวุ้นได้แล้วสินะ ฝีมือไม่เลวเลย สำหรับคนที่เมื่อวานยังหาดาบตัวเองไม่เจอ' },
+        { w: 'npc', t: 'ข้าต้องขอโทษที่ไม่ได้บอกก่อน รอยร้าวบนฟ้านั่น... ข้าเคยเห็นมันมาแล้ว ตอนข้ายังเป็นผู้กล้าเหมือนเจ้า' },
+        { w: 'n',   t: '(สีหน้านางเปลี่ยนไปครู่หนึ่ง ก่อนจะกลับมายิ้มแบบครูฝึกตามเดิม)' },
+        { w: 'npc', t: 'เรื่องยาวเกินจะเล่าตอนนี้ แค่รู้ไว้ว่ามันไม่ใช่เรื่องของทุ่งนี้ที่เดียว ผ่านประตูวาร์ปทางตะวันออกไปทะเลทราย นักสำรวจซาฮีร์เดินตามรอยร้าวอยู่ ไปหาเขา' },
+        { w: 'npc', t: 'ระวังตัวด้วยนะ และอย่าลืมกินข้าว ข้าไม่อยากเห็นลูกศิษย์คนแรกล้มเพราะหิว' }
+      ],
+      reward: { exp: 200, zeny: 300, items: { bigPotion: 2 } } },
+    { id: 'a1s3', act: 1, npc: 'explorer', minLevel: 15, quest: 'q6',
+      lines: [
+        { w: 'npc', t: 'ราชาแมงป่องตายแล้ว! ข้าสำรวจทะเลทรายนี้มาสิบปี ไม่เคยเห็นใครทำได้โดยไม่ร้องไห้ขอกลับบ้านก่อนเลย' },
+        { w: 'npc', t: 'ทีนี้ข้าก็เอาของที่ซ่อนไว้ใต้รังมันมาโชว์ได้ — ดูนี่' },
+        { w: 'n',   t: '(เขาหยิบเศษผลึกสีฟ้าเรืองแสงขึ้นมา มันเต้นเป็นจังหวะ เหมือนหัวใจดวงเล็ก ๆ)' },
+        { w: 'npc', t: 'นี่คือเศษของ "แก่นอีเธอร์" สิ่งที่ค้ำโลกนี้ไว้ ตำนานว่ามันถูกแบ่งให้ผู้พิทักษ์ดูแลทีละชิ้น แต่ตอนนี้มันร้าว พลังรั่วออกมา มอนสเตอร์ถึงได้คลั่งกันไปหมด' },
+        { w: 'npc', t: 'เศษเล็กแค่นี้บอกอะไรไม่ได้มากหรอก ข้ามีเพื่อนนักธรณีอยู่ถ้ำคริสตัล ชื่อลีน่า นางเข้าใจเรื่องพวกนี้ที่สุด ไปหานางเถอะ บอกว่าข้าส่งมา' },
+        { w: 'npc', t: 'อ้อ ฝากบอกนางด้วยว่าข้ายังติดค่าข้าวสามมื้ออยู่ ข้าจะจ่ายให้ทันทีที่โลกไม่แตก' }
+      ],
+      reward: { exp: 600, zeny: 800, items: { bigPotion: 3 } } },
+    { id: 'a1s4', act: 1, npc: 'geologist', minLevel: 24, quest: 'q8',
+      lines: [
+        { w: 'npc', t: 'เจ้าล้มจ้าวคริสตัลได้จริง ๆ! ข้าขุดถ้ำนี้มาสามปี ได้แต่ฟังเสียงมันครางอยู่ลึก ๆ ใต้หิน' },
+        { w: 'npc', t: 'ซาฮีร์ส่งมาใช่ไหม ไม่ต้องบอก ข้าดูออก... เศษผลึกในกระเป๋าเจ้านั่นสั่นตอบสนองกับของข้าอยู่เลย' },
+        { w: 'n',   t: '(ผลึกในมือลีน่ากับของคุณเรืองแสงพร้อมกัน แล้วหลอมรวมกันเป็นผลึกชิ้นใหญ่ที่เต้นช้า ๆ อบอุ่น)' },
+        { w: 'npc', t: 'นี่คือชิ้นส่วนแก่นอีเธอร์ชิ้นแรกที่จ้าวคริสตัลเฝ้าไว้ และข้าเจอป้ายหินโบราณในห้องลึก มันเขียนว่า จ้าวคริสตัลไม่ได้เป็นปีศาจมาแต่แรก มันคือ "ผู้พิทักษ์" ที่ถูกพลังรั่วทำให้เสียสติ' },
+        { w: 'n',   t: '(ทันใดนั้นปากทางถ้ำมีเงาวูบหนึ่ง ร่างสูงในเสื้อคลุมยืนมองมาจากที่ไกล ๆ ก่อนจะหายไปในแสงผลึก)' },
+        { w: 'npc', t: '...เจ้าเห็นเหมือนข้าไหม เมื่อกี้มีใครยืนอยู่ตรงนั้น' },
+        { w: 'npc', t: 'ไม่ว่าเขาคือใคร เขาตามหาสิ่งเดียวกับเรา และข้ารู้สึกว่าเขาไม่ได้มาดี ข้าจะส่งข่าวไปบอกครูไลล่า เจ้าพักเถอะ เรื่องนี้ใหญ่เกินกว่าทุ่งหนึ่งแล้ว' },
+        { w: 'n',   t: '— จบองก์ 1 "รอยร้าวบนฟ้า" — (องก์ต่อไปยังอยู่ระหว่างการพัฒนา)' }
+      ],
+      reward: { exp: 1500, zeny: 3000, items: { bigPotion: 5 } } }
+  ];
+  const STORY_SCENE_BY_ID = {}; for (const s of STORY_SCENES) STORY_SCENE_BY_ID[s.id] = s;
+  function newStory() { return { done: [] }; }
+  function sanitizeStory(o) {
+    const done = [];
+    if (o && Array.isArray(o.done)) for (const id of o.done) if (typeof id === 'string' && STORY_SCENE_BY_ID[id] && done.indexOf(id) < 0) done.push(id);
+    // ต้องเรียงตามลำดับจริง (ตัดส่วนที่ข้ามขั้นทิ้ง)
+    const ok = []; for (const s of STORY_SCENES) { if (done.indexOf(s.id) < 0) break; ok.push(s.id); }
+    return { done: ok };
+  }
+  function storyNextScene(story) { for (const s of STORY_SCENES) if (!story || story.done.indexOf(s.id) < 0) return s; return null; }
+  // สถานะฉากถัดไป: null = จบทั้งหมด · { scene, ready, needLevel, needQuest }
+  function storyStatus(story, quests, level) {
+    const s = storyNextScene(story); if (!s) return null;
+    const questOk = !s.quest || !!(quests && quests[s.quest] && quests[s.quest].status === 'done');
+    const levelOk = level >= s.minLevel;
+    return { scene: s, ready: questOk && levelOk, needLevel: levelOk ? 0 : s.minLevel, needQuest: questOk ? null : s.quest };
+  }
+  function storyReadyFor(story, quests, level, npcId) { const st = storyStatus(story, quests, level); return st && st.ready && st.scene.npc === npcId ? st.scene : null; }
+  // ข้อความ HUD "ตอนต่อไป"
+  function storyHint(story, quests, level) {
+    const st = storyStatus(story, quests, level);
+    if (!st) return '📖 เรื่ององก์ 1 จบแล้ว (องก์ต่อไปกำลังพัฒนา)';
+    const g = NPC_INDEX[st.scene.npc], where = g.npc.name + ' (' + MAPS[g.map].name + ')';
+    if (st.ready) return '📖 ตอนต่อไป: ไปคุยกับ ' + where;
+    if (st.needQuest) return '📖 ตอนต่อไป: ทำเควส "' + QUESTS[st.needQuest].name + '" ให้สำเร็จ แล้วไปคุยกับ ' + g.npc.name;
+    return '📖 ตอนต่อไป: ต้องถึง Lv ' + st.needLevel + ' แล้วไปคุยกับ ' + g.npc.name;
+  }
+  // ดูฉากจบ: บันทึกว่าดูแล้ว + แจกรางวัล (ได้ครั้งเดียว)
+  function storyFinish(p, inv, story, id) {
+    const s = storyNextScene(story);
+    if (!s || s.id !== id) return { ok: false };
+    story.done.push(id);
+    const g = gainExpEx(p, s.reward.exp);
+    p.zeny += s.reward.zeny;
+    for (const k in s.reward.items) addItem(inv, k, s.reward.items[k]);
+    return { ok: true, reward: s.reward, levelsGained: g.levels, jobLevelsGained: g.jobLevels, scene: s };
+  }
+
   // ---------- กระเป๋า / อุปกรณ์ / อาชีพ ----------
   function countItem(inv, id) { return inv[id] || 0; }
   function addItem(inv, id, n) { inv[id] = Math.min(9999, (inv[id] || 0) + n); }
@@ -3482,7 +3846,7 @@ const Logic = (function () {
                 equip: (() => { const e = emptyEquip(); for (const k of EQUIP_SLOT_KEYS) e[k] = p.equip[k] || null; return e; })(),
                 cards: (() => { const c = { weapon: cardsIn(p, 'weapon').slice(), armor: cardsIn(p, 'armor').slice() }; for (const k of EQUIP_SLOT_KEYS) if (!c[k] && cardsIn(p, k).length) c[k] = cardsIn(p, k).slice(); return c; })(),
                 refine: Object.assign({}, p.refine || {}) },
-      inv: s.inv, quests: s.quests
+      inv: s.inv, quests: s.quests, daily: s.daily || null, story: s.story || null
     });
   }
   function deserialize(text) {
@@ -3556,7 +3920,7 @@ const Logic = (function () {
           }
         }
       }
-      return { player, inv, quests, migrated };
+      return { player, inv, quests, daily: sanitizeDaily(o.daily), story: sanitizeStory(o.story), migrated };   // daily (0.61): ฟิลด์เสริม เซฟเก่าไม่มี = null (เกมสุ่มให้ตอนเปิด)
     } catch (e) {
       return null;
     }
@@ -3674,6 +4038,9 @@ const Logic = (function () {
   const COWARD_FLEE_TIME = 3.5;      // วิ่งหนีกี่วินาทีหลังโดนตีแต่ละครั้ง
   const MAP_NORMAL_TARGET = 32;      // เป้าจำนวนมอนปกติต่อแผนที่ (ไม่นับบอส/มินิบอส)
   for (const id in MONSTERS) { const d = MONSTERS[id]; d.temper = d.aggro > 0 ? 'aggro' : 'passive'; }
+  // 0.62: ผู้เล่นแรงขึ้นจากโบนัสขั้นสเตตัส/เซ็ตอุปกรณ์/ตีบวก → บอสท้ายเกมที่เคยพอดีเริ่มง่ายเกินไป จึงเพิ่ม HP/ATK เฉพาะตัวที่เทสต์สมดุลชี้ว่าง่ายเกิน [คูณ HP, คูณ ATK] (จูนด้วยชุดเช็กสมดุลของแต่ละอาชีพ)
+  const LATE_BOSS_TUNE = { stormGoddess: [1.1, 1.1], chronos: [1.1, 1.1], godDragon: [1.12, 1.12], fallenAngel: [1.25, 1], aetherLord: [1.1, 1], librarian: [1.15, 1] };
+  for (const id in LATE_BOSS_TUNE) { const d = MONSTERS[id], t = LATE_BOSS_TUNE[id]; if (d) { d.hp = Math.round(d.hp * t[0]); d.atk = Math.round(d.atk * t[1]); } }
   // มอนเดิมที่นิสัยสงบ (โกเลม/หุ่น/สัตว์ใหญ่ใจเย็น) — ไม่ตีก่อน แต่ถ้าโดนตีจะสู้เต็มที่
   for (const id of ['snowman', 'golem', 'iceGolem', 'lavaGolem', 'cloudGolem', 'sandGolem', 'bookworm', 'voidWhale']) { MONSTERS[id].aggro = 0; MONSTERS[id].temper = 'passive'; }
 
@@ -3806,6 +4173,10 @@ const Logic = (function () {
     countItem, addItem, removeItem, itemDesc, canEquip, equipItem, unequipItem, slotCount, cardsIn, slotCard, unslotCard,
     changeJob, usePotion, autoPotion,
     buyItem, shopItems, sellValue, sellLoot, spareEquipValue, sellSpareEquip,
+    STAT_TIERS, STAT_MILESTONE, statTierOf, statMilestones, SETS, SET_PIECES, setOfItem, setBonusAt, activeSet, REFINE_PIECE_TIERS, REFINE_PIECE, REFINE_TOTAL_TIERS, refinePieceBonus, refineTotal, refineMilestones, powerBonus,
+    STORY_ACTS, STORY_TEAM, STORY_TEAM_NAME, storyActOf, storyUnlocked,
+    STORY_SCENES, newStory, sanitizeStory, storyNextScene, storyStatus, storyReadyFor, storyHint, storyFinish,
+    DAILY_COUNT, DAILY_STREAK_GOAL, dailyNew, dailyEnsure, dailyStreakNow, dailyEvent, dailyReward, dailyBonusReward, dailyClaim, dailyAllClaimed, dailyClaimBonus, dailyText, sanitizeDaily,
     currentQuestId, questStatus, trackedQuest, acceptQuest, onMonsterKilled, completeQuest,
     mulberry32, createWorld, terrainAt, nearWater, serialize, deserialize,
     MAX_ACCOUNTS, MAX_CHARS, NAME_MAX, emptyProfiles, sanitizeProfiles, validateName, addAccount, addChar, removeChar, removeAccount,
@@ -5283,6 +5654,7 @@ const Logic = (function () {
     if (cur.bossPct || nxt.bossPct) grid.appendChild(statLine('ดาเมจใส่บอส', cur.bossPct, nxt.bossPct, x => '+' + Math.round(x * 100) + '%'));
     if (cur.expPct || nxt.expPct) grid.appendChild(statLine('EXP ที่ได้', cur.expPct, nxt.expPct, x => '+' + Math.round(x * 100) + '%'));
     const gb = el('div', 'box'); gb.appendChild(grid); box.appendChild(gb);
+    box.appendChild(milestoneBox(p));
     box.appendChild(el('p', 'small', 'ตีโดน = 80 + HIT − FLEE ของมอนสเตอร์ (ต่ำสุด 10% สูงสุด 95%) · บอสหลบเก่งกว่า จึงต้องมี DEX · สกิลตีโดนเสมอ · คริติคอลดาเมจ ×' + L.CRIT_MULT + ' และไม่โดนลดด้วย DEF'));
     box.appendChild(el('p', 'small', 'อยากแจกใหม่? คุยกับครูฝึกไลล่าในหมู่บ้านเริ่มต้นเพื่อรีเซ็ตสเตตัส (เสีย ' + L.resetCost(p) + ' Zeny)'));
     const bar = el('div', 'acts'); bar.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:8px';
@@ -5325,6 +5697,7 @@ const Logic = (function () {
     bOff.addEventListener('click', () => { if (!confirm('ถอดอุปกรณ์ทุกชิ้นลงกระเป๋า? (การ์ดจะคืนกระเป๋าด้วย ไม่หาย)')) return; for (const k of L.EQUIP_SLOT_KEYS) L.unequipItem(p, state.inv, k); addLog('ถอดอุปกรณ์ทั้งหมด'); save(); ui.eqPick = null; again(); });
     tools.appendChild(bBest); tools.appendChild(bOff);
     box.appendChild(tools);
+    box.appendChild(powerLines(p));
     const wb = el('div', 'eqwb');
     // ---- ซ้าย: ช่องอุปกรณ์ ----
     const left = el('div', 'eqslots');
@@ -5531,8 +5904,10 @@ const Logic = (function () {
   }
   function openQuests() {
     const box = el('div');
+    box.appendChild(dailyBox());
+    const mh = el('p', null, '📜 เควสหลัก'); mh.style.fontWeight = 'bold'; mh.style.marginTop = '10px'; box.appendChild(mh);
     for (const l of questLines()) box.appendChild(rowEl(l.name, l.txt, []));
-    openModal('📜 เควส', box, [CLOSE_BTN], 'quest');
+    openModal('📜 เควส', box, [{ label: '📖 สมุดเรื่อง', onClick: openStory }, CLOSE_BTN], 'quest');
   }
   function rewardText(r) {
     const parts = ['EXP +' + r.exp, 'Zeny +' + r.zeny];
@@ -5758,6 +6133,7 @@ const Logic = (function () {
         btns = [{ label: 'ตี +' + info.next, cls: 'main', disabled: !info.ok, onClick: () => {
           if (info.next > L.REFINE_SAFE && !confirm('ตี ' + it.name + ' เป็น +' + info.next + '?\nโอกาสสำเร็จ ' + Math.round(info.chance * 100) + '% ถ้าพลาดบวกจะลดเหลือ +' + (info.level - 1 >= 0 ? info.level - 1 : 0) + ' (ของไม่แตก) แต่วัตถุดิบและ Zeny ไม่คืน')) return;
           const r = L.refineItem(p, state.inv, id, Math.random);
+          if (r.ok) dailyProgress({ kind: 'refine' });
           if (r.ok && r.success) { addLog('🔨 ตีบวก ' + it.name + ' สำเร็จ! เป็น +' + r.level); addFloat(p.x, p.y - 58, '+' + r.level + ' สำเร็จ!', '#ffe14a'); sfx('level'); }
           else if (r.ok) { addLog('💥 ตีบวก ' + it.name + ' พลาด... บวกลดเหลือ +' + r.level); addFloat(p.x, p.y - 58, 'พลาด', '#ff8a8a'); sfx('potion'); }
           else addLog('ตีบวกไม่ได้: ' + (r.reason === 'zeny' ? 'Zeny ไม่พอ' : r.reason === 'notworn' ? 'ต้องสวมชิ้นนี้อยู่ที่ตัวก่อน' : 'วัตถุดิบไม่พอ'));
@@ -5772,6 +6148,7 @@ const Logic = (function () {
   function talkTo(n) {
     rt.dest = null;
     { const p = state.player; if (Math.abs(n.x - p.x) > 2) rt.face = n.x > p.x ? 1 : -1; life.react = { k: 'nod', t0: game.time, d: 0.6 }; }   // หันหน้าหา NPC + พยักหน้า (0.39)
+    if (tryStoryScene(n)) return;   // ฉากเรื่องรออยู่ที่ NPC คนนี้ (0.63)
     if (n.type === 'quest') openQuestNpc(n); else if (n.type === 'shop') openShop(n); else if (n.type === 'smith') openSmith(n); else openJobMaster(n);
   }
 
@@ -5801,6 +6178,183 @@ const Logic = (function () {
       { label: '← กลับไปตั้งค่าออโต้', onClick: openAuto }, CLOSE_BTN], 'bestiary');
   }
 
+  // ---------- ภารกิจประจำวัน (0.61) — ส่วนหน้าจอ/เวลา (กติกาอยู่ใน logic/71-daily.js) ----------
+  function dayNo() { return Math.floor((Date.now() - new Date().getTimezoneOffset() * 60000) / 86400000); }   // เลขวันตามเวลาท้องถิ่น (เที่ยงคืนเครื่อง)
+  function dailySync() {
+    const old = state.daily, d = L.dailyEnsure(old, state.player.level, dayNo(), Math.random);
+    if (d !== old) {
+      state.daily = d;
+      if (active) { addLog('📅 ภารกิจประจำวันชุดใหม่มาแล้ว! เปิดดูที่ 📜 เควส'); save(); }
+    }
+    return state.daily;
+  }
+  function dailyProgress(ev) {
+    const d = dailySync();
+    for (const u of L.dailyEvent(d, ev)) {
+      const e = d.list[u.i];
+      if (u.done) { addLog('📅 ภารกิจประจำวัน "' + L.dailyText(e) + '" ครบแล้ว! รับรางวัลที่ 📜 เควส'); sfx('quest'); }
+      else if (u.p % 5 === 0 || e.k === 'boss' || e.k === 'refine') addLog('📅 ' + L.dailyText(e) + ': ' + u.p + '/' + u.n);
+    }
+  }
+  function dailyHudLine() {
+    const d = state.daily; if (!d) return '';
+    let ready = 0, claimed = 0;
+    for (const e of d.list) { if (e.c) claimed++; else if (e.p >= e.n) ready++; }
+    if (claimed === d.list.length) return d.bonus ? '📅 ประจำวันครบทุกข้อแล้ว' : '📅 ประจำวัน: รับกล่องโบนัสที่ 📜';
+    return '📅 ประจำวัน ' + claimed + '/' + d.list.length + (ready ? ' · พร้อมรับ ' + ready + ' ข้อ' : '');
+  }
+  function dailyBox() {
+    const d = dailySync(), box = el('div');
+    const head = el('p', null, '📅 ภารกิจประจำวัน'); head.style.fontWeight = 'bold'; box.appendChild(head);
+    const streak = L.dailyStreakNow(d, dayNo());
+    box.appendChild(el('p', 'small', 'รีเซ็ตทุกเที่ยงคืน · ทำครบทั้ง ' + L.DAILY_COUNT + ' ข้อ + รับรางวัลครบ = กล่องโบนัส · ติดต่อกัน ' + L.DAILY_STREAK_GOAL + ' วันได้ของพิเศษ (ตอนนี้ติดต่อกัน ' + streak + ' วัน)'));
+    d.list.forEach((e, i) => {
+      const r = L.dailyReward(state.player.level, e.k);
+      const btns = [];
+      let txt = L.dailyText(e) + '\nความคืบหน้า ' + e.p + '/' + e.n + ' · รางวัล: ' + rewardText(r);
+      if (e.c) txt = '✅ ' + L.dailyText(e) + ' (รับแล้ว)';
+      else if (e.p >= e.n) btns.push({ label: 'รับรางวัล', cls: 'main', onClick: () => {
+        const res = L.dailyClaim(state.player, state.inv, d, i);
+        if (res.ok) { addLog('🎁 รับรางวัลภารกิจประจำวัน: ' + rewardText(res.reward)); sfx('quest'); if (res.levelsGained > 0) addLog('🎉 เลเวลอัป! ตอนนี้ Lv ' + state.player.level); save(); }
+        openQuests();
+      } });
+      box.appendChild(rowEl('ข้อ ' + (i + 1), txt, btns));
+    });
+    const bonusBtns = [];
+    let btxt = 'ทำครบ ' + L.DAILY_COUNT + ' ข้อและรับรางวัลครบทุกข้อก่อน จึงเปิดกล่องได้';
+    if (d.bonus) btxt = '✅ รับกล่องโบนัสวันนี้แล้ว (ติดต่อกัน ' + Math.max(streak, 1) + '/' + L.DAILY_STREAK_GOAL + ' วัน)';
+    else if (L.dailyAllClaimed(d)) {
+      btxt = '🎁 ครบทุกข้อแล้ว! รางวัล: ' + rewardText(L.dailyBonusReward(state.player.level, false));
+      bonusBtns.push({ label: 'เปิดกล่องโบนัส', cls: 'main', onClick: () => {
+        const res = L.dailyClaimBonus(state.player, state.inv, d, dayNo());
+        if (res.ok) {
+          addLog('🎁 กล่องโบนัสประจำวัน: ' + rewardText(res.reward)); sfx('level');
+          if (res.streakDone) addLog('🏆 ครบ ' + L.DAILY_STREAK_GOAL + ' วันติดต่อกัน! ได้ของพิเศษเพิ่ม (เริ่มนับรอบใหม่)'); else addLog('📅 ติดต่อกัน ' + res.streak + '/' + L.DAILY_STREAK_GOAL + ' วัน');
+          if (res.levelsGained > 0) addLog('🎉 เลเวลอัป! ตอนนี้ Lv ' + state.player.level);
+          save();
+        }
+        openQuests();
+      } });
+    }
+    box.appendChild(rowEl('🎁 กล่องโบนัส', btxt, bonusBtns));
+    return box;
+  }
+  // ---------- โบนัสพลัง 3 แบบ + สมุดเรื่อง (0.62) — ส่วนหน้าจอ (กติกาอยู่ใน logic/72-power.js, 73-story.js) ----------
+  const BONUS_LABEL = {
+    atkPct: x => 'ดาเมจ +' + pctTxt(x), hpPct: x => 'HP +' + pctTxt(x), bossPct: x => 'ดาเมจใส่บอส +' + pctTxt(x), expPct: x => 'EXP +' + pctTxt(x),
+    fleeAdd: x => 'หลบ +' + x, hitAdd: x => 'แม่น +' + x, critAdd: x => 'คริ +' + x + '%', sp: x => 'SP +' + x, regenAdd: x => 'ฟื้น HP +' + pctTxt(x) + '/วิ'
+  };
+  function pctTxt(x) { return (Math.round(x * 1000) / 10) + '%'; }
+  function bonusText(b) { const out = []; for (const k in BONUS_LABEL) if (b && b[k]) out.push(BONUS_LABEL[k](b[k])); return out.join(' · ') || '—'; }
+
+  // กล่อง "ขั้นพลังสเตตัส" ในแท็บสเตตัส: ขั้นปัจจุบัน/โบนัส/ขั้นถัดไป (นับแต้มที่แจกจริง ไม่นับค่าที่ยังไม่กดยืนยัน)
+  function milestoneBox(p) {
+    const box = el('div', 'box mil');
+    box.appendChild(el('b', null, '🏅 ขั้นพลังสเตตัส (ถึงขั้น ' + L.STAT_TIERS.join(' / ') + ')'));
+    for (const m of L.statMilestones(p)) {
+      const row = el('div', 'milrow');
+      const nm = L.STAT_INFO[m.key].name + ' ' + m.value + ' · ' + (m.tier ? '"' + m.title + '" ขั้น ' + m.tier + '/' + L.STAT_TIERS.length : 'ยังไม่ถึงขั้นแรก');
+      row.appendChild(el('span', 'milnm' + (m.tier === L.STAT_TIERS.length ? ' max' : ''), nm));
+      row.appendChild(el('span', 'small', (m.tier ? 'ได้: ' + bonusText(m.bonus) : '') + (m.next ? (m.tier ? ' · ' : '') + 'ถึง ' + m.next + ' → ' + bonusText(m.nextBonus) : '')));
+      box.appendChild(row);
+    }
+    return box;
+  }
+  // บรรทัดสรุปเซ็ต/ตีบวกในแท็บอุปกรณ์
+  function powerLines(p) {
+    const box = el('div', 'box eqpower');
+    const as = L.activeSet(p);
+    if (as) {
+      const parts = []; for (const n of L.SET_PIECES) parts.push((as.count >= n ? '✅' : '▫️') + n + ' ชิ้น');
+      const sb = el('div', 'small'); sb.textContent = '🧩 ' + as.set.name + ' ' + as.count + '/8 (' + parts.join(' ') + ') → ' + bonusText(as.bonus);
+      sb.title = 'เซ็ต 3 ชิ้น: HP · 5 ชิ้น: ดาเมจ+คริ · 8 ชิ้น: ดาเมจใส่บอส  (สวมหลายธีมปนกัน นับธีมที่ครบมากสุดอย่างเดียว)';
+      box.appendChild(sb);
+      const others = Object.keys(as.counts).filter(k => k !== as.set.id);
+      if (others.length) box.appendChild(el('div', 'small dim', '(ชิ้นธีมอื่น ' + others.length + ' ธีมไม่นับ — นับธีมที่ครบมากสุดเท่านั้น)'));
+    } else box.appendChild(el('div', 'small dim', '🧩 เซ็ตอุปกรณ์: สวมชุดธีมเดียวกัน (น้ำแข็ง เพลิง เงามืด ฯลฯ) ครบ 3 / 5 / 8 ชิ้นได้โบนัสเพิ่ม'));
+    const rm = L.refineMilestones(p);
+    const rb = []; for (const x of rm.pieces) rb.push(L.SLOT_NAME[x.slot] + ' +' + x.level + ': ' + bonusText(x.bonus));
+    box.appendChild(el('div', 'small', '🔨 ตีบวกรวม ' + rm.sum + (rm.next ? ' (ถึง ' + rm.next + ' ได้ ดาเมจ/HP เพิ่ม)' : ' (สูงสุด)') + (rm.pct ? ' → ดาเมจ/HP +' + pctTxt(rm.pct) : '') + (rm.title ? ' · ฉายา "' + rm.title + '"' : '')));
+    if (rb.length) box.appendChild(el('div', 'small', rb.join(' · ')));
+    else box.appendChild(el('div', 'small dim', 'ตีบวกชิ้นเดียวถึง +5 / +7 / +9 / +10 ได้โบนัสตามประเภทของ'));
+    return box;
+  }
+
+  // สมุดเรื่อง
+  function openStory() {
+    const lv = state.player.level, box = el('div');
+    const h = el('p', null, '📖 ' + L.STORY_TEAM_NAME); h.style.fontWeight = 'bold'; box.appendChild(h);
+    box.appendChild(el('p', 'small', 'บันทึกภาพรวมเรื่องราวของโลกอีเธเรีย เปิดอ่านทีละองก์เมื่อเลเวลถึง · (องก์ 1 มีฉากพูดคุยเล่นได้แล้ว ส่วนองก์ 2-5 จะตามมาในรุ่นหน้า)'));
+    const st = L.storyStatus(storyState(), state.quests, lv);
+    const nb = el('div', 'box'); nb.appendChild(el('b', null, '🎬 ฉากเรื่อง')); nb.appendChild(el('p', 'small', storyHudLine())); box.appendChild(nb);
+    for (const id of storyState().done) { const sc = L.STORY_SCENES.find(x => x.id === id), nn = L.NPC_INDEX[sc.npc].npc; box.appendChild(rowEl('✅ ' + nn.name + ' (องก์ ' + sc.act + ')', 'ดูฉากย้อนหลังได้', [{ label: 'ดูอีกครั้ง', onClick: () => openScene(sc, true) }])); }
+    const act = L.storyActOf(lv);
+    for (const s of L.STORY_ACTS) {
+      if (L.storyUnlocked(lv, s.n)) box.appendChild(rowEl('องก์ ' + s.n + ' · ' + s.title + (s.n === act ? ' ⭐ (ตอนนี้)' : ''), s.where + '\n' + s.text, []));
+      else box.appendChild(rowEl('องก์ ' + s.n + ' · 🔒 ???', 'เปิดเมื่อถึง Lv ' + s.level, []));
+    }
+    const th = el('p', null, '🤝 สหาย'); th.style.fontWeight = 'bold'; th.style.marginTop = '10px'; box.appendChild(th);
+    for (const t of L.STORY_TEAM) {
+      if (act >= t.act) box.appendChild(rowEl(t.name, t.role, []));
+      else box.appendChild(rowEl('🔒 ???', 'จะพบในองก์ ' + t.act, []));
+    }
+    box.appendChild(rowEl('ช่างตีเหล็กบอร์ก', 'แปลกจัง ไปที่ไหนก็เจอเขาอยู่ที่นั่นทุกที่...', []));
+    openModal('📖 สมุดเรื่อง', box, [{ label: '← กลับไปเควส', onClick: openQuests }, CLOSE_BTN], 'quest');
+  }
+  // ---------- ฉากเรื่อง (0.63) — ส่วนหน้าจอ: หน้าต่างพูดคุยมีรูปคนพูด (กติกา/บทอยู่ใน logic/74-scenes.js) ----------
+  function storyState() { if (!state.story) state.story = L.newStory(); return state.story; }
+  // รูปหน้าแบบง่าย วาดจากสีเสื้อ/สีผมของ NPC
+  function faceSvg(color, hair) {
+    return '<svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" fill="#e3f0ff"/>' +
+      '<path d="M8 64 Q10 44 32 42 Q54 44 56 64Z" fill="' + color + '"/>' +
+      '<rect x="27" y="36" width="10" height="9" rx="3" fill="#e9c4a0"/>' +
+      '<ellipse cx="32" cy="26" rx="13" ry="15" fill="#f4d6b8"/>' +
+      '<path d="M18 26 Q17 8 32 9 Q47 8 46 26 Q43 17 32 17 Q21 17 18 26Z" fill="' + hair + '"/>' +
+      '<circle cx="26.5" cy="28" r="1.8" fill="#2b2b3a"/><circle cx="37.5" cy="28" r="1.8" fill="#2b2b3a"/>' +
+      '<path d="M27 35 Q32 38.5 37 35" stroke="#a5604a" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>';
+  }
+  // เปิดฉาก: replay = true ดูซ้ำ (ไม่แจกรางวัล)
+  function openScene(scene, replay) {
+    const n = L.NPC_INDEX[scene.npc].npc, last = scene.lines.length - 1;
+    let i = 0;
+    function show() {
+      const ln = scene.lines[i], box = el('div', 'scene' + (ln.w === 'n' ? ' narr' : ''));
+      if (ln.w === 'n') box.appendChild(el('p', null, ln.t));
+      else {
+        const pt = el('div', 'pt'); pt.innerHTML = faceSvg(n.color, n.hair); box.appendChild(pt);
+        const sp = el('div', 'sp'); sp.appendChild(el('b', null, n.name)); sp.appendChild(el('p', null, ln.t)); box.appendChild(sp);
+      }
+      const wrap = el('div'); wrap.appendChild(box); wrap.appendChild(el('div', 'pg', (i + 1) + ' / ' + (last + 1)));
+      const btns = [];
+      if (i < last) {
+        btns.push({ label: 'ต่อไป ▶', cls: 'main', onClick: () => { i++; show(); } });
+        btns.push({ label: '⏭ ข้ามไปท้ายฉาก', onClick: () => { i = last; show(); } });
+      } else if (replay) btns.push({ label: 'ปิด', cls: 'main', onClick: closeModal });
+      else btns.push({ label: '✔ จบฉาก (รับรางวัล)', cls: 'main', onClick: finish });
+      if (i > 0) btns.push({ label: '◀ ย้อน', onClick: () => { i--; show(); } });
+      openModal(replay ? '📖 ' + n.name + ' (ดูซ้ำ)' : '📖 ' + n.name, wrap, btns, 'scene');
+    }
+    function finish() {
+      const r = L.storyFinish(state.player, state.inv, storyState(), scene.id);
+      closeModal();
+      if (!r.ok) return;
+      addLog('📖 ฉากเรื่อง "' + n.name + '" จบแล้ว · รางวัล: ' + rewardText(r.reward)); sfx('quest');
+      if (r.levelsGained > 0) { addLog('🎉 เลเวลอัป! ตอนนี้ Lv ' + state.player.level); sfx('level'); }
+      save();
+      const nx = L.storyNextScene(storyState());
+      addLog(nx ? L.storyHint(storyState(), state.quests, state.player.level) : '🎉 จบองก์ 1 แล้ว! องก์ต่อไปกำลังพัฒนา');
+    }
+    show();
+  }
+  // ถ้า NPC คนนี้มีฉากเรื่องรออยู่ → เปิดฉาก (คืน true) ไม่งั้นคืน false ให้ไปเมนูปกติของ NPC
+  function tryStoryScene(npc) {
+    const sc = L.storyReadyFor(storyState(), state.quests, state.player.level, npc.id);
+    if (!sc) return false;
+    openScene(sc, false); return true;
+  }
+  function storyMarkFor(npcId) { return !!L.storyReadyFor(storyState(), state.quests, state.player.level, npcId); }
+  function storyHudLine() { return L.storyHint(storyState(), state.quests, state.player.level); }
+  function storyMarkAny() { const st = L.storyStatus(storyState(), state.quests, state.player.level); return !!(st && st.ready); }
   // ---------- ออโต้โจมตี ----------
   function autoTypesHere() {
     const here = monsterIdsOf(curMap());
@@ -6004,6 +6558,7 @@ const Logic = (function () {
     if (drop.items.some(id => L.ITEMS[id].type === 'card')) { addLog('🃏✨ การ์ดตก! รีบไปเก็บ'); addFloat(m.x, m.y - 76, '🃏 CARD!', '#e0b3ff'); sfx('level'); }
     addFloat(m.x, m.y - 56, '+' + exp + ' EXP', '#f5c542');
     sfx('kill');
+    dailyProgress({ kind: 'kill', id: m.id });
     for (const u of ups) {
       const q = L.QUESTS[u.id];
       if (u.ready) { addLog('เควส "' + q.name + '" ครบแล้ว! กลับไปรายงาน ' + L.NPC_INDEX[q.giver].npc.name); sfx('quest'); }
@@ -9274,6 +9829,7 @@ const Logic = (function () {
     } else if (n.type === 'job') {
       mark = ((state.player.job === 'novice' && state.player.level >= L.JOB_CHANGE_LEVEL) || L.advanceReq(state.player).ok) ? '!' : '';
     }
+    if (storyMarkFor(n.id)) mark = '⭐';   // ฉากเรื่องรออยู่ (0.63)
     if (mark) label(mark, n.x, n.y - 72 + Math.sin(game.time * 5) * 3, '#ffe14a', 22);
   }
   function drawWarp(w) {
@@ -10126,6 +10682,8 @@ const Logic = (function () {
     const jhud = L.jobChangeHint(p);   // เตือนค้างไว้ที่ HUD จนกว่าจะเปลี่ยนอาชีพ
     if (jhud) qt = '📢 ' + (p.map === jhud.map ? 'ไปหา' : 'กลับไปหา') + jhud.npc + ' (' + jhud.mapName + ') เพื่อ' + (jhud.kind === 'first' ? 'เปลี่ยนอาชีพ' : 'เป็น' + jhud.to) + '\n' + qt;
     setTxt('qtrack', qt);
+    setTxt('stag', storyHudLine()); $('stag').className = 'small' + (storyMarkAny() ? ' s-ready' : '');
+    dailySync(); setTxt('dtrack', dailyHudLine()); $('dtrack').className = 'small' + (/พร้อมรับ|รับกล่อง/.test($('dtrack').textContent) ? ' d-ready' : '');
     $('qtrack').className = 'small ' + (jhud ? 'q-job' : !tq ? 'q-done' : tq.status === 'ready' ? 'q-ready' : tq.status === 'active' ? 'q-active' : 'q-wait');   // สีบอกสถานะเควส
     const autoOn = game.auto.on;
     setAct('aAuto', '⏩', autoOn ? 'ON' : 'ออโต้', false);
