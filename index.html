@@ -118,6 +118,8 @@ input.txt:focus{outline:3px solid rgba(61,125,224,.35);border-color:var(--blue)}
 .tile.t2{border-color:#7fb2ff;background:linear-gradient(#fff,#cfe3ff)}.tile.t3{border-color:#f0b44a;background:linear-gradient(#fffdf2,#ffe9b0)}.tile.card{border-color:#c39bf0;background:linear-gradient(#fff,#eadbff)}
 .tile.r0{border-color:#aab4c4;background:linear-gradient(#fff,#e6eaf0)}.tile.r1{border-color:#4ebd5c;background:linear-gradient(#fff,#d8f5d8)}.tile.r2{border-color:#4a8cf0;background:linear-gradient(#fff,#d2e4ff)}
 .tile.r3{border-color:#a55fe8;background:linear-gradient(#fff,#ecd8ff)}.tile.r4{border-color:#f09a22;background:linear-gradient(#fffdf2,#ffe2a0)}.tile.r5{border-color:#e8404a;background:linear-gradient(#fff6f6,#ffc9c9);box-shadow:inset 0 0 8px rgba(255,255,255,.9),0 0 7px rgba(232,64,74,.65)}
+.tile .tb{position:absolute;right:2px;top:1px;font-size:13px;line-height:1;filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 1px #fff)}
+.tile .eq{top:16px!important}
 .tile .jb{position:absolute;right:2px;top:1px;font-size:11px;line-height:1;padding:1px 2px;border-radius:6px;border:1.5px solid;background:#fff}.tile .jb.sword{border-color:#e0584a}.tile .jb.staff{border-color:#4a7ae0}.tile .jb.bow{border-color:#3fae5c}.tile .eq{top:14px}
 .tile .pips{position:absolute;left:3px;bottom:1px;font-size:10px;line-height:1;letter-spacing:-1px;color:#7a4bd0;text-shadow:0 0 2px #fff,0 0 2px #fff}
 .rlegend{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0;font-size:11px}.rlegend i{font-style:normal;padding:1px 7px;border-radius:999px;border:2px solid;background:#fff;color:#2b4a8c}
@@ -238,6 +240,22 @@ body.touch #log{left:calc(max(14px,env(safe-area-inset-left)) + 136px);width:cla
 body.touch.chat-open #log{left:8px}
 body.touch #upToast{left:calc(max(14px,env(safe-area-inset-left)) + 136px);bottom:calc(max(8px,env(safe-area-inset-bottom)) + 150px);width:clamp(180px,calc(100vw - 380px),340px)}
 #dlg{max-height:calc(100dvh - 20px)}
+/* ปุ่มซ่อน/แสดง กล่องสถานะ เมนู ปุ่มสกิล (0.60) — ซ่อนแล้วเหลือแค่ปุ่มวงกลมเล็ก ๆ ไว้กดเปิดกลับ */
+.tg{position:absolute;width:28px;height:28px;min-width:0;min-height:0;padding:0;border-radius:50%;border:1.5px solid #fff;background:rgba(20,40,95,.78);color:#fff;font:inherit;font-size:14px;font-weight:bold;line-height:1;cursor:pointer;pointer-events:auto;z-index:3;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+.tg:active{filter:brightness(.9)}
+#tgHud{right:4px;top:4px}
+#hud .row{padding-right:30px}
+#tgMenu{position:static;flex:0 0 28px;align-self:center}
+#tgSkill{right:0;top:-34px}
+body.hide-hud #hud{width:auto;padding:3px;background:none;border-color:transparent;backdrop-filter:none;-webkit-backdrop-filter:none}
+body.hide-hud #hud>:not(.tg){display:none}
+body.hide-hud #tgHud{position:static}
+body.hide-menu #topRight{left:auto!important;width:auto;padding:3px}
+body.hide-menu #topRight>:not(.tg){display:none!important}
+body.hide-skill #actions>.act{display:none!important}
+body.hide-skill #actions{width:auto!important;height:auto!important;display:block!important;transform:none!important}
+body.hide-skill #tgSkill{position:static}
+body.intitle .tg{visibility:hidden}
 /* จอสัมผัสทุกขนาด (0.59.1): ข้อความในกล่องสถานะบรรทัดเดียว (ไม่ดันกล่องให้สูง) · ข้อความเกมโชว์แค่ล่าสุด 4 บรรทัด */
 body.touch #qtrack,body.touch #autoLine,body.touch #buffLine,body.touch #ver{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 body.touch #qtrack{margin-top:4px;padding-top:4px}
@@ -302,6 +320,70 @@ noscript{position:fixed;inset:0;display:flex;align-items:center;justify-content:
 .wlegend{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px;color:var(--ink2);margin:0 0 6px}
 .wlegend span::before{content:'';display:inline-block;width:11px;height:11px;border-radius:50%;background:var(--c);border:1px solid #fff;box-shadow:0 0 0 1px #8fb0e6;margin-right:4px;vertical-align:-1px}
 @media (max-width:640px){.wnode2 b{font-size:18px}.wnode2 .nm{font-size:9.5px}.wnode2 .lv{font-size:9px}.wnode2{min-height:50px}}
+
+/* หน้าอุปกรณ์ใหม่ (0.60): ซ้าย = ช่อง 8 ช่อง · ขวา = โต๊ะจัดการของช่องที่เลือก */
+.eqwb{display:grid;grid-template-columns:136px minmax(0,1fr);gap:10px;align-items:start}
+.eqslots{display:grid;grid-template-columns:1fr 1fr;gap:6px 4px}
+.eqslot{display:flex;flex-direction:column;align-items:center;gap:1px;min-width:0}
+.eqslot .tile{width:56px;height:56px;min-height:56px;font-size:28px;flex:none;aspect-ratio:auto}
+.eqslot .cap{font-size:10.5px;color:var(--ink2);line-height:1.2;text-align:center;white-space:nowrap}
+.eqslot.cur .cap{color:#2f62c4;font-weight:bold}
+.eqbench{min-width:0}
+.eqhead{display:flex;align-items:center;gap:8px;padding:6px 8px}
+.eqhead .tile{width:52px;height:52px;min-height:52px;font-size:26px;flex:none;aspect-ratio:auto}
+.eqhead .eqtxt{flex:1;min-width:0;line-height:1.3}
+.eqhead .eqtxt b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.eqhead .eqtxt .small{white-space:normal;max-height:2.8em;overflow:hidden}
+.eqsock{align-items:center;margin:6px 0 0;flex-basis:auto}
+.seg{display:flex;gap:6px;margin:8px 0 6px;flex-wrap:wrap}
+.eqpreview{margin:0 0 6px;padding:6px 8px}
+.eqpreview .dsc{white-space:pre-line;margin:2px 0 4px}
+.eqpreview .acts{display:flex;gap:6px;flex-wrap:wrap}
+.eqlist{grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:6px}
+@media (max-width:640px){
+  .eqwb{grid-template-columns:minmax(0,1fr)}
+  .eqslots{grid-template-columns:repeat(4,1fr)}
+}
+
+/* หน้าสกิลใหม่ (0.60): จอกว้าง = ต้นไม้ซ้าย รายละเอียดขวา (ติดอยู่กับที่) · จอแคบ = รายละเอียดติดขอบล่างของหน้าต่าง ไม่ต้องเลื่อนลงไปหา */
+.skslots{padding:6px 8px;margin-bottom:8px}
+.skrow2{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.skwrap{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:10px;align-items:start}
+.skwrap>.detail{position:sticky;top:0;margin-top:0}
+@media (max-width:640px){
+  .skwrap{grid-template-columns:minmax(0,1fr)}
+  .skwrap>.detail{position:sticky;bottom:0;top:auto;z-index:2;order:2;box-shadow:0 -6px 12px rgba(70,100,160,.28);background:#eef4ff;max-height:46vh;overflow:auto}
+  .skslots{position:sticky;top:0;z-index:3;background:#eef4ff}
+}
+
+/* หน้าต่างอยู่เหนือกล่องสถานะ/ปุ่มทั้งหมด · จอแคบ/จอเตี้ย: แท็บอุปกรณ์/สกิลซ่อนรูปตัวละครด้านซ้าย เพื่อให้ทุกอย่างอยู่ในหน้าเดียว (0.60) */
+#overlay{z-index:20}
+@media (max-width:640px){.charwin.tab-equip .stage,.charwin.tab-skill .stage{display:none}}
+@media (max-height:500px){.charwin.tab-equip .stage,.charwin.tab-skill .stage{display:none}.charwin.tab-equip,.charwin.tab-skill{grid-template-columns:minmax(0,1fr)}}
+
+/* หน้าอุปกรณ์/สกิลบนมือถือแนวนอน (จอเตี้ย): ย่อแท็บ ปุ่ม ช่อง ให้พอดีจอมากที่สุด */
+@media (max-height:500px){
+  .tabs{margin-bottom:4px}
+  .tab{min-height:34px;padding:1px 10px;display:inline-flex;align-items:center;gap:4px}
+  .tab b{display:inline;font-size:16px}
+  .eqtools{margin:0 0 4px}
+  .eqtools .btn{min-height:32px;padding:2px 10px;font-size:13px}
+  .eqwb{grid-template-columns:200px minmax(0,1fr);gap:8px}
+  .eqslots{grid-template-columns:repeat(4,1fr);gap:4px 2px}
+  .eqslot .tile,.eqhead .tile{width:44px;height:44px;min-height:44px;font-size:22px}
+  .eqhead{padding:4px 6px}
+  .eqsock{margin-top:3px}
+  .seg{margin:4px 0}.seg .btn{min-height:32px;font-size:13px}
+  .skslots{padding:4px 6px;margin-bottom:4px}
+}
+
+@media (max-width:640px){
+  .skwrap>.detail{max-height:36vh;padding:6px 8px}
+  .skwrap>.detail .dsc{font-size:12px;margin:2px 0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .skwrap>.detail .kv{grid-template-columns:auto 1fr auto 1fr;font-size:12px;gap:1px 8px;margin:3px 0}
+  .skwrap>.detail .acts{margin-top:4px}
+  .skwrap>.detail .btn.sm{min-height:34px;padding:2px 10px;font-size:13px}
+}
 </style>
 </head>
 <body>
@@ -319,9 +401,11 @@ noscript{position:fixed;inset:0;display:flex;align-items:center;justify-content:
   <div id="autoLine" class="small hidden"></div>
   <div id="buffLine" class="small hidden"></div>
   <div id="ver"></div>
+  <button class="tg" id="tgHud" type="button" aria-label="ซ่อน/แสดงกล่องสถานะ">➖</button>
 </div>
 
 <div id="topRight" class="panel">
+  <button class="tg" id="tgMenu" type="button" aria-label="ซ่อน/แสดงแถบเมนู">➖</button>
   <button class="btn" id="bPause" title="หยุดชั่วคราว (P)" aria-label="หยุดชั่วคราว">⏸</button>
   <button class="btn" id="bSound" title="เสียง (M)" aria-label="เปิด/ปิดเสียง">🔊</button>
   <button class="btn" id="bChat" title="แชท (Enter)" aria-label="แชท">💬</button>
@@ -342,6 +426,7 @@ noscript{position:fixed;inset:0;display:flex;align-items:center;justify-content:
 <div id="alertBar" class="hidden" role="alert"></div>
 
 <div id="actions">
+  <button class="tg" id="tgSkill" type="button" aria-label="ซ่อน/แสดงปุ่มสกิล">➖</button>
   <button class="act" id="aAuto" aria-label="เปิด/ปิดออโต้โจมตี (T)"><b>⏩</b><span>ออโต้</span></button>
   <button class="act" id="aS6" aria-label="สกิลที่ 6 (ปลดล็อกที่เลเวล 130 กดปุ่ม 7)" style="display:none"><b>—</b><span></span></button>
   <button class="act" id="aS5" aria-label="สกิลที่ 5 (ปลดล็อกที่เลเวล 99 กดปุ่ม 6)" style="display:none"><b>—</b><span></span></button>
@@ -375,7 +460,7 @@ noscript{position:fixed;inset:0;display:flex;align-items:center;justify-content:
 // =====================================================================
 const Logic = (function () {
   'use strict';
-  const VERSION = '0.59.1';
+  const VERSION = '0.60.0';
   const SAVE_VERSION = 4;
   const MAX_LEVEL = 150;   // 0.13: ขยายจาก 50 เป็น 99 · 0.16: ขยายเป็น 120 · 0.33: ขยายเป็น 150
   const MAP_W = 1600, MAP_H = 1200;
@@ -3783,7 +3868,7 @@ const Logic = (function () {
                  saveWarned: false, saveT: 0, hudT: 0, deadT: 0, combatT: 0, warpCool: 1.5, marker: null, W: 0, H: 0, dpr: 1,
                  drops: [], auto: { on: false, idleWarned: false, potCd: 0 } };
   const rt = { target: null, dest: null, npc: null, atkCd: 0, swingT: 0, face: 1, moving: false, pending: null, cd: {} };
-  let settings = { sound: true, auto: L.sanitizeAuto(null) };
+  let settings = { sound: true, auto: L.sanitizeAuto(null), hide: { hud: false, menu: false, skill: false } };   // hide = ซ่อนกล่องสถานะ/เมนู/ปุ่มสกิลไว้ (0.60)
   let state = null, world = null;
   let profiles = L.emptyProfiles(), active = null;   // active = { acc, ch } ตัวละครที่กำลังเล่น (null = อยู่หน้าเลือกบัญชี/ตัวละคร)
 
@@ -3837,6 +3922,7 @@ const Logic = (function () {
         const o = JSON.parse(t);
         if (o && typeof o.sound === 'boolean') settings.sound = o.sound;
         if (o) settings.auto = L.sanitizeAuto(o.auto);
+        if (o && o.hide) for (const k of ['hud', 'menu', 'skill']) settings.hide[k] = o.hide[k] === true;
       }
     } catch (e) { /* ใช้ค่าเริ่มต้น */ }
   }
@@ -4777,7 +4863,7 @@ const Logic = (function () {
   }
 
   // ---------- ชิ้นส่วนหน้าตาที่ใช้ร่วมกัน: ไอคอนไอเทม แท็บ ช่องตาราง กล่องรายละเอียด ----------
-  const ui = { shopMode: 'buy', sellTray: {}, tab: 'status', bagSort: 'lv', bagSlot: 'any', bagVar: 'any', bagUsable: false, bagTab: 'all', bagSel: null, eqSel: null, skSel: null };   // สถานะหน้าต่าง (ไม่เซฟ)
+  const ui = { shopMode: 'buy', sellTray: {}, tab: 'status', bagSort: 'lv', bagSlot: 'any', bagVar: 'any', bagUsable: false, bagTab: 'all', bagSel: null, eqSel: null, eqSlot: 'weapon', eqMode: 'swap', eqPick: null, skSel: null };   // สถานะหน้าต่าง (ไม่เซฟ)
   const ITEM_ICON = { potion: '🧪', bigPotion: '⚗️', jellyGel: '💧', mushCap: '🍄', wolfFang: '🦷', scorpTail: '🦂', mummyWrap: '🩹', batWing: '🦇',
     crystalShard: '💎', jellyCrown: '👑', kingStinger: '🗡️', crystalHeart: '💠', clothes: '👕', leatherArmor: '🧥', chainMail: '⛓️', plateArmor: '🛡️', steelBlade: '⚔️',
     snowClump: '⛄', iceFang: '🧊', wispCore: '👻', yetiFur: '🧶', queenTiara: '👸', titanCore: '💠', frostBlade: '❄️', frostArmor: '🧊',
@@ -4795,7 +4881,32 @@ const Logic = (function () {
     leatherBoots: '🥾', travelBoots: '👟', ironGreaves: '🦶', frostBoots: '⛸️' });
   const KIND_ICON = { sword: '🗡️', staff: '🔮', bow: '🏹', armor: '🛡️', head: '🎩', acc: '📿', shield: '🛡️', garment: '🧥', shoes: '🥾' };
   const SLOT_EMPTY_ICON = { weapon: '⚔️', shield: '🛡️', armor: '👕', garment: '🧥', shoes: '🥾', head: '🎩', acc: '💍', acc2: '💍' };   // ไอคอนจาง ๆ บอกชนิดช่องที่ว่าง
-  function itemIcon(id) { const it = L.ITEMS[id]; return ITEM_ICON[id] || ITEM_ICON[L.baseOf(id)] || (it.type === 'card' ? '🃏' : KIND_ICON[it.kind] || '📦'); }
+  // ไอคอนไอเทม (0.60): อุปกรณ์ = รูปหลักบอกประเภท (ดาบ/ไม้เท้า/ธนู/เกราะ/โล่/ผ้าคลุม/รองเท้า/หมวก/เครื่องประดับ) + ป้ายเล็กมุมขวาบนบอกธีมตามชื่อ (❄️ 🔥 ⚡ ...)
+  // การ์ด = รูปมอนสเตอร์ตามชื่อการ์ด + ป้าย 🃏 · ของอื่น (ยา/วัตถุดิบ) ใช้ตาราง ITEM_ICON ตามเดิม
+  const MAIN_KIND = { sword: '🗡️', staff: '🪄', bow: '🏹', armor: '🥋', shield: '🛡️', garment: '🧥', shoes: '👢' };
+  const HEAD_RULES = [[/มงกุฎ|ชฎา/, '👑'], [/หน้ากาก/, '🎭'], [/หมวกเหล็ก|หมวกอัศวิน|หมวกเกราะ/, '⛑️'], [/ฮู้ด|ผ้าคลุมศีรษะ|ผ้าคาดหัว/, '🧢'], [/แว่น/, '👓'], [/ริบบิ้น|ปิ่น/, '🎀'], [/หมวกฟาง/, '👒']];
+  const ACC_RULES = [[/แหวน/, '💍'], [/ปีก/, '🪽'], [/ผ้าพันคอ/, '🧣'], [/ผ้าคลุม/, '🧥'], [/โคลเวอร์/, '🍀'], [/เหรียญ|ตรา|เข็ม/, '🏅'], [/ต่างหู/, '💎'], [/โคม/, '🏮'], [/เครื่องราง/, '🧿'], [/สร้อย|จี้|ลูกประคำ|ตะกรุด|กำไล|เกล็ด/, '📿']];
+  const THEME_RULES = [[/น้ำแข็ง|หิมะ|ธารน้ำ|ไททัน|เยติ|ผลึกราชินี/, '❄️'], [/เพลิง|ลาวา|ซาลาแมนเดอร์/, '🔥'], [/วิญญาณ|เงามืด|เงา/, '👻'], [/ลิช|กระดูก/, '💀'], [/สายฟ้า|อัสนี|เมฆา/, '⚡'],
+    [/อเวจี/, '🌑'], [/เทพเจ้า/, '✨'], [/กาลเวลา|นาฬิกา|ทราย/, '⏳'], [/จักรวาล|ดาวหาง|เนบิวลา|ดารา|ดาว/, '🌌'], [/กินรี/, '🪶'], [/สิงหา/, '🦁'], [/คชสีห์/, '🐘'], [/บัว/, '🪷'], [/กระสือ/, '💡'],
+    [/ลำพู|ป่า|โคลเวอร์/, '🌿'], [/มังกร/, '🐉'], [/คริสตัล|ผลึก/, '💎'], [/อาร์เคน/, '🔮'], [/ปีก|ขนนก|ขน/, '🪶'], [/เหล็ก/, '🔩'], [/ไม้|โอ๊ก/, '🪵'], [/ทองแดง/, '🟠'], [/เงิน/, '⚪'], [/หนัง/, '🟤'], [/ฟาง/, '🌾'], [/ปีศาจ|อสูร|เหว/, '😈'], [/พราน|นายพราน/, '🎯']];
+  const CARD_RULES = [[/ครูใหญ่/, '🎓'], [/ครู/, '🧑‍🏫'], [/Poring|วุ้น/, '💧'], [/Spore|เห็ด/, '🍄'], [/Familiar|ค้างคาว/, '🦇'], [/หมาป่า/, '🐺'], [/แมงป่อง/, '🦂'], [/มัมมี่|มหาปุโรหิต/, '🩹'], [/โกเลม/, '🗿'],
+    [/เศษผลึก|ผลึก|คริสตัล/, '💎'], [/มนุษย์หิมะ/, '⛄'], [/เยติ/, '🦣'], [/ราชินี/, '👸'], [/ซาลาแมนเดอร์|จิ้งจก/, '🦎'], [/มังกร/, '🐉'], [/แมวซาก/, '🐈'], [/ไททัน/, '🗿'], [/โครงกระดูก|ลิช/, '💀'], [/นกสายฟ้า/, '🦅'],
+    [/ครุฑ/, '🦅'], [/เทพี|ทูตสวรรค์/, '👼'], [/ปีศาจ|อสูร|จอมมาร/, '😈'], [/ผู้พิทักษ์/, '🛡️'], [/กระสือ/, '💡'], [/กระหัง/, '🧺'], [/ตายโหง|ป่าช้า|วิญญาณ|ผี|เงา/, '👻'], [/ตะเคียน/, '🌳'], [/กินรี/, '🧚'], [/สิงหา/, '🦁'],
+    [/คชสีห์/, '🐘'], [/นาคราช|นาค/, '🐍'], [/กุมารทอง/, '👶'], [/พญายม/, '⚖️'], [/ยักษ์|อินทรชิต|กุมภกรรณ|ทศกัณฐ์/, '👹'], [/ค่าง|วานร/, '🐒'], [/ทหาร|นายกอง|ผู้บังคับ/, '⚔️'], [/อัศวิน/, '🛡️'],
+    [/ดาวหาง/, '☄️'], [/ดาวร่วง|ดาว/, '⭐'], [/ทราย/, '⏳'], [/เนบิวลา/, '🌌'], [/วาฬ/, '🐋'], [/จักรพรรดิ|ราชา|จ้าว/, '👑'], [/หนอน/, '🐛'], [/หมึก/, '🖋️'], [/คัมภีร์/, '📜'], [/บรรณารักษ์/, '📚'], [/กาลเวลา|เวร/, '⏳'], [/ลูก/, '🐾']];
+  function firstRule(rules, name, dflt) { for (const [re, ic] of rules) if (re.test(name)) return ic; return dflt; }
+  function itemIcon(id) {
+    const it = L.ITEMS[id]; if (!it) return '📦';
+    if (it.type === 'card') return firstRule(CARD_RULES, it.name.replace(/^การ์ด\s*/, ''), '🃏');
+    if (it.type === 'equip') return it.kind === 'head' ? firstRule(HEAD_RULES, it.name, '🎩') : it.kind === 'acc' ? firstRule(ACC_RULES, it.name, '💍') : MAIN_KIND[it.kind] || '📦';
+    return ITEM_ICON[id] || ITEM_ICON[L.baseOf(id)] || '📦';
+  }
+  function itemBadge(id) {   // ป้ายเล็ก: ธีมของอุปกรณ์ (ว่าง = ไม่มี) · การ์ดมีป้าย 🃏
+    const it = L.ITEMS[id]; if (!it) return '';
+    if (it.type === 'card') return '🃏';
+    if (it.type !== 'equip') return '';
+    return firstRule(THEME_RULES, L.ITEMS[L.baseOf(id)] ? L.ITEMS[L.baseOf(id)].name : it.name, '');
+  }
   function tileClass(id) { return 'r' + L.rarityOf(id); }   // ขอบสีตามระดับความสำคัญ: เทา เขียว น้ำเงิน ม่วง ส้ม แดง (0.38)
   const RARITY_COLOR = ['#c9d2e0', '#7fe08a', '#7fb2ff', '#cf9bff', '#ffc65a', '#ff7a80'];
   function rarityLegend() {
@@ -4848,7 +4959,7 @@ const Logic = (function () {
     if (o.lv) b.appendChild(el('span', 'lv', 'Lv' + o.lv));
     if (o.equipped) b.appendChild(el('span', 'eq', '✔'));
     if (o.rec) b.appendChild(el('span', 'rec', '⭐'));
-    if (o.id && L.ITEMS[o.id] && L.ITEMS[o.id].type === 'equip' && L.ITEMS[o.id].slot === 'weapon') b.appendChild(el('span', 'jb ' + L.ITEMS[o.id].kind, { sword: '⚔️', staff: '🔮', bow: '🏹' }[L.ITEMS[o.id].kind]));   // ป้ายอาชีพของอาวุธ
+    if (o.id && L.ITEMS[o.id]) { const bd = itemBadge(o.id); if (bd) b.appendChild(el('span', 'tb', bd)); }   // ป้ายธีมมุมขวาบน (0.60 แทนป้ายอาชีพของอาวุธ — รูปหลักบอกประเภทอยู่แล้ว)
     if (o.id && L.ITEMS[o.id]) {   // id = ไอเทมในช่อง: โชว์ช่องการ์ด (◆ ใส่แล้ว ◇ ว่าง) + คำอธิบายเมื่อเมาส์วาง
       const it = L.ITEMS[o.id];
       if (it.type === 'equip' && it.slots) b.appendChild(el('span', 'pips', '◆'.repeat(Math.min(it.slots, (o.cards || []).length)) + '◇'.repeat(Math.max(0, it.slots - (o.cards || []).length))));
@@ -5083,7 +5194,7 @@ const Logic = (function () {
     if (typeof tab === 'string') ui.tab = tab;
     if (fresh || !statPending) statPending = Object.assign({}, p.stats);
     for (const k of L.STAT_KEYS) if (!(statPending[k] >= p.stats[k])) statPending[k] = p.stats[k];
-    const root = el('div', 'charwin');
+    const root = el('div', 'charwin tab-' + ui.tab);
     root.appendChild(charStage(p));
     const right = el('div');
     const sFree = L.pointsFree(p) - (L.pointsSpent(statPending) - L.pointsSpent(p.stats));
@@ -5190,137 +5301,101 @@ const Logic = (function () {
     return box;
   }
 
-  // ---------- แท็บอุปกรณ์: ช่องอาวุธ/เกราะ + ช่องการ์ด + อุปกรณ์ในกระเป๋า ----------
+  // ---------- แท็บอุปกรณ์ (0.60): หน้าเดียว ซ้าย = ช่องอุปกรณ์ 8 ช่อง · ขวา = โต๊ะจัดการของช่องที่เลือก (อุปกรณ์ปัจจุบัน + ช่องการ์ด + รายการเปลี่ยน/ใส่การ์ด) ไม่ต้องเลื่อนหา ----------
   function equipTab(p) {
-    const box = el('div'), sel = ui.eqSel;
-    const isSlot = (s, slot) => !!sel && sel.kind === 'slot' && sel.slot === slot;
-    const isCard = (slot, i) => !!sel && sel.kind === 'card' && sel.slot === slot && sel.i === i;
+    const box = el('div');
     upg.list = L.bestUpgrades(p, state.inv);
-    // ของแนะนำ: สรุปของที่ดีกว่าที่สวมอยู่ พร้อมปุ่มสวมทีเดียว
-    if (upg.list.length) {
-      const rb = el('div', 'box recbox'); rb.appendChild(el('b', null, '⭐ แนะนำให้เปลี่ยน (' + upg.list.length + ')'));
-      for (const u of upg.list) {
-        const line = el('div', 'eqrow'); line.style.margin = '4px 0 0';
-        line.appendChild(el('span', 'eqtxt', itemIcon(u.id) + ' ' + recText(p, u) + ' · ' + L.SLOT_NAME[u.slot]));
-        const b = el('button', 'btn sm main', 'สวมใส่'); b.type = 'button'; b.addEventListener('click', () => { equipNow(u.id, u.slot); openChar(); });
-        line.appendChild(b); rb.appendChild(line);
-      }
-      box.appendChild(rb);
+    // ทางเข้าจากที่อื่น (ป้ายแนะนำ/ปุ่ม "ไปใส่การ์ด"): ตั้งช่อง/โหมดให้ตรง
+    const es = ui.eqSel;
+    if (es) {
+      if (es.kind === 'bag' && L.ITEMS[es.id]) { ui.eqSlot = L.targetSlot(p, es.id); ui.eqMode = 'swap'; ui.eqPick = es.id; }
+      else if (es.kind === 'card' || es.kind === 'slot') { ui.eqSlot = es.slot; ui.eqMode = es.kind === 'card' ? 'card' : 'swap'; ui.eqPick = null; }
+      ui.eqSel = null;
     }
-    // ช่องอุปกรณ์ 8 ช่อง จัดเป็น 2 คอลัมน์ (ซ้าย: อาวุธ เกราะ รองเท้า หมวก / ขวา: โล่ ผ้าคลุม เครื่องประดับ 1-2)
     const ORDER = ['weapon', 'shield', 'armor', 'garment', 'shoes', 'acc', 'head', 'acc2'];
-    const grid8 = el('div', 'eqgrid');
-    for (const slot of ORDER) {
-      const id = p.equip[slot], row = el('div', 'box eqrow');
-      const big = tileEl(id ? itemIcon(id) : SLOT_EMPTY_ICON[slot], { id, cards: id ? L.cardsIn(p, slot) : null, cls: (id ? tileClass(id) : 'empty ghost') + ' big', sel: isSlot(null, slot), label: L.SLOT_NAME[slot] + (id ? ' ' + itemName(id) : ' ว่าง') },
-        () => { ui.eqSel = { kind: 'slot', slot }; openChar(); });
-      row.appendChild(big);
-      const tx = el('div', 'eqtxt');
-      tx.appendChild(el('div', 'small', L.SLOT_NAME[slot]));
-      tx.appendChild(el('b', null, id ? eqName(id) : 'ว่าง'));
-      row.appendChild(tx);
-      // ช่องการ์ดอยู่บนการ์ดอุปกรณ์เลย (กดใส่/ถอดได้ทันที ไม่ต้องเลื่อนลง)
-      const n = id ? L.slotCount(p, slot) : 0, cs = L.cardsIn(p, slot);
-      if (n) {
-        const cw = el('div', 'cardrow mini');
-        for (let i = 0; i < n; i++) {
-          cw.appendChild(tileEl(cs[i] ? '🃏' : '+', { id: cs[i], cls: (cs[i] ? tileClass(cs[i]) : 'empty') + ' sm', sel: isCard(slot, i), label: 'ช่องการ์ด ' + (i + 1) + (cs[i] ? ' ' + itemName(cs[i]) : ' ว่าง') },
-            () => { ui.eqSel = { kind: 'card', slot, i }; openChar(); }));
-        }
-        row.appendChild(cw);
-      }
-      grid8.appendChild(row);
-    }
-    // ปุ่มลัด: สวมของดีที่สุดทั้งหมด / ถอดทั้งหมด
+    if (ORDER.indexOf(ui.eqSlot) < 0) ui.eqSlot = 'weapon';
+    const slot = ui.eqSlot, id = p.equip[slot], n = id ? L.slotCount(p, slot) : 0, cs = id ? L.cardsIn(p, slot) : [];
+    if (!n && ui.eqMode === 'card') ui.eqMode = 'swap';
+    const again = () => openChar('equip');
+    // ปุ่มลัด
     const tools = el('div', 'eqtools');
     const bBest = el('button', 'btn sm main', '⭐ สวมของดีที่สุด' + (upg.list.length ? ' (' + upg.list.length + ')' : '')); bBest.type = 'button'; bBest.disabled = !upg.list.length;
-    bBest.addEventListener('click', () => { for (const u of L.bestUpgrades(p, state.inv)) equipNow(u.id, u.slot); openChar(); });
+    bBest.addEventListener('click', () => { for (const u of L.bestUpgrades(p, state.inv)) equipNow(u.id, u.slot); ui.eqPick = null; again(); });
     const bOff = el('button', 'btn sm', 'ถอดทั้งหมด'); bOff.type = 'button'; bOff.disabled = !L.EQUIP_SLOT_KEYS.some(k => p.equip[k]);
-    bOff.addEventListener('click', () => { if (!confirm('ถอดอุปกรณ์ทุกชิ้นลงกระเป๋า? (การ์ดจะคืนกระเป๋าด้วย ไม่หาย)')) return; for (const k of L.EQUIP_SLOT_KEYS) L.unequipItem(p, state.inv, k); addLog('ถอดอุปกรณ์ทั้งหมด'); save(); ui.eqSel = null; openChar(); });
+    bOff.addEventListener('click', () => { if (!confirm('ถอดอุปกรณ์ทุกชิ้นลงกระเป๋า? (การ์ดจะคืนกระเป๋าด้วย ไม่หาย)')) return; for (const k of L.EQUIP_SLOT_KEYS) L.unequipItem(p, state.inv, k); addLog('ถอดอุปกรณ์ทั้งหมด'); save(); ui.eqPick = null; again(); });
     tools.appendChild(bBest); tools.appendChild(bOff);
     box.appendChild(tools);
-    box.appendChild(grid8);
-    // รายละเอียดของสิ่งที่เลือก
-    if (sel && sel.kind === 'bag' && !state.inv[sel.id]) ui.eqSel = null;
-    const s2 = ui.eqSel;
-    if (!s2) box.appendChild(detailBox('จัดการอุปกรณ์', 'แตะช่องอุปกรณ์ (อาวุธ โล่ เกราะ ผ้าคลุม รองเท้า หมวก เครื่องประดับ 2 ช่อง) หรือช่องการ์ดเพื่อจัดการ · แตะอุปกรณ์ในกระเป๋าด้านล่างเพื่อดูและสวมใส่'));
-    else if (s2.kind === 'slot') {
-      const id = p.equip[s2.slot];
-      // ของในกระเป๋าที่สวมช่องนี้ได้ (แตะเพื่อเปลี่ยนทันที เรียงของดี/แนะนำก่อน)
-      const swapBox = () => {
-        const cand = Object.keys(state.inv).filter(k => L.ITEMS[k] && L.ITEMS[k].type === 'equip' && L.slotAccepts(s2.slot, L.ITEMS[k].slot) && L.canEquip(p, k).ok)
-          .sort((a, b) => (upg.list.some(u => u.id === b) ? 1 : 0) - (upg.list.some(u => u.id === a) ? 1 : 0) || L.ITEMS[b].minLevel - L.ITEMS[a].minLevel);
-        const w = el('div'); w.appendChild(el('div', 'small', '🎒 เปลี่ยนเป็น (แตะเพื่อสวมทันที) — ' + (cand.length ? cand.length + ' ชิ้น' : 'ไม่มีของสำรองที่ใส่ช่องนี้ได้')));
-        if (cand.length) {
-          const g = el('div', 'grid');
-          for (const k of cand) g.appendChild(tileEl(itemIcon(k), { id: k, cls: tileClass(k), count: state.inv[k], lv: L.ITEMS[k].minLevel > 1 ? L.ITEMS[k].minLevel : 0, rec: upg.list.some(u => u.id === k), label: itemName(k) },
-            () => { equipNow(k, s2.slot); openChar(); }));
-          w.appendChild(g);
-        }
-        return w;
-      };
-      if (!id) box.appendChild(detailBox('ยังไม่ได้สวม' + L.SLOT_NAME[s2.slot], '', [], swapBox()));
-      else {
-        // 0.38: แตะอุปกรณ์ → เห็นการ์ดที่ใส่อยู่ในชิ้นนี้ (แตะเพื่อถอด) + การ์ดที่ยังไม่ได้ใส่ในกระเป๋าที่ใส่ช่องนี้ได้ (แตะเพื่อใส่)
-        const n = L.slotCount(p, s2.slot), cs = L.cardsIn(p, s2.slot), ex = el('div');
-        if (n) {
-          ex.appendChild(el('div', 'small', '🃏 การ์ดในอุปกรณ์ชิ้นนี้ (' + Math.min(cs.length, n) + '/' + n + ') — แตะการ์ดเพื่อถอด'));
-          const cw = el('div', 'cardrow');
-          for (let i = 0; i < n; i++) cw.appendChild(tileEl(cs[i] ? '🃏' : '+', { id: cs[i], cls: (cs[i] ? tileClass(cs[i]) : 'empty') + ' sm', label: cs[i] ? itemName(cs[i]) : 'ช่องการ์ดว่าง' },
-            cs[i] ? () => { L.unslotCard(p, state.inv, s2.slot, i); addLog('ถอด ' + itemName(cs[i])); save(); openChar(); } : null));
-          ex.appendChild(cw);
-          const cn = L.CARD_TYPE_NAME[L.CARD_TYPE_OF_SLOT[s2.slot]];
-          const free = Object.keys(state.inv).filter(k => L.ITEMS[k] && L.ITEMS[k].type === 'card' && L.ITEMS[k].cardSlot === L.CARD_TYPE_OF_SLOT[s2.slot]).sort((a, b) => L.rarityOf(b) - L.rarityOf(a));
-          ex.appendChild(el('div', 'small', '🃏 การ์ดที่ยังไม่ได้ใส่ (ชนิด' + cn + ') — แตะเพื่อใส่ลงช่องว่าง' + (cs.length >= n ? ' (ช่องเต็ม ต้องถอดก่อน)' : '')));
-          if (free.length) {
-            const g = el('div', 'grid');
-            for (const k of free) g.appendChild(tileEl('🃏', { id: k, cls: tileClass(k), count: state.inv[k], dim: cs.length >= n, label: itemName(k) }, () => {
-              const r = L.slotCard(p, state.inv, s2.slot, k);
-              if (r.ok) { addLog('🃏 ใส่ ' + itemName(k) + ' ลง' + itemName(id)); sfx('potion'); save(); }
-              openChar();
-            }));
-            ex.appendChild(g);
-          } else ex.appendChild(el('div', 'small', 'ไม่มีการ์ดชนิด' + cn + 'ที่ยังไม่ได้ใส่ในกระเป๋า'));
-        } else ex.appendChild(el('div', 'small', 'อุปกรณ์ชิ้นนี้ไม่มีช่องการ์ด'));
-        ex.appendChild(swapBox());
-        const db = detailBox(eqName(id), L.itemDesc(id) + (refineText(id) ? '\n' + refineText(id) : ''), [{ label: 'ถอดออก', onClick: () => { L.unequipItem(p, state.inv, s2.slot); addLog('ถอด ' + itemName(id)); save(); ui.eqSel = null; openChar(); } }], ex);
-        box.appendChild(db); setTimeout(() => db.scrollIntoView({ block: 'nearest' }), 0);   // ให้เห็นรายละเอียด+การ์ดทันทีโดยไม่ต้องเลื่อนหา
-      }
-    } else if (s2.kind === 'card') {
-      const eid = p.equip[s2.slot], cs = L.cardsIn(p, s2.slot), cid = cs[s2.i];
-      if (!eid || s2.i >= L.slotCount(p, s2.slot)) { ui.eqSel = null; box.appendChild(detailBox('จัดการอุปกรณ์', 'แตะช่องอุปกรณ์ หรือช่องการ์ดเพื่อจัดการ')); }
-      else if (cid) box.appendChild(detailBox('🃏 ' + itemName(cid), L.itemDesc(cid), [{ label: 'ถอดการ์ด', onClick: () => { L.unslotCard(p, state.inv, s2.slot, s2.i); addLog('ถอด ' + itemName(cid)); save(); openChar(); } }]));
-      else {
-        const have = Object.keys(state.inv).filter(k => L.ITEMS[k] && L.ITEMS[k].type === 'card' && L.ITEMS[k].cardSlot === L.CARD_TYPE_OF_SLOT[s2.slot]);
-        const g = el('div', 'grid');
-        for (const k of have) g.appendChild(tileEl('🃏', { id: k, cls: tileClass(k), count: state.inv[k], label: itemName(k) }, () => {
-          const r = L.slotCard(p, state.inv, s2.slot, k);
-          if (r.ok) { addLog('🃏 ใส่ ' + itemName(k) + ' ลง' + itemName(eid)); sfx('potion'); save(); }
-          openChar();
-        }));
-        const cn = L.CARD_TYPE_NAME[L.CARD_TYPE_OF_SLOT[s2.slot]];
-        const d = detailBox('ช่องการ์ดว่าง', have.length ? 'แตะการ์ดที่ต้องการใส่ลงช่องนี้ (ใส่ได้เฉพาะการ์ดสำหรับ' + cn + ')' :
-          'ยังไม่มีการ์ดสำหรับ' + cn + ' — การ์ดได้จากการล่ามอนสเตอร์ (โอกาสน้อยมาก) ดูที่ 📖 สมุดการ์ด', [], have.length ? g : null);
-        box.appendChild(d);
-      }
-    } else {
-      const id = s2.id, it = L.ITEMS[id], c = L.canEquip(p, id), cmp = equipCompare(p, id);
-      let desc = L.itemDesc(id) + (cmp ? '\n' + cmp : '');
-      if (!c.ok) desc += '\n⚠ ' + (c.reason === 'level' ? 'ต้อง Lv ' + it.minLevel + ' ขึ้นไป' : 'อาชีพนี้ใช้ไม่ได้');
-      const rec = upg.list.find(u => u.id === id); if (rec) desc += '\n⭐ แนะนำ: ดีกว่าที่สวมอยู่ในช่อง' + L.SLOT_NAME[rec.slot];
-      box.appendChild(detailBox(it.name, desc, equipButtons(p, id, () => { ui.eqSel = null; openChar(); })));
+    const wb = el('div', 'eqwb');
+    // ---- ซ้าย: ช่องอุปกรณ์ ----
+    const left = el('div', 'eqslots');
+    for (const sk of ORDER) {
+      const sid = p.equip[sk], cell = el('div', 'eqslot' + (sk === slot ? ' cur' : ''));
+      cell.appendChild(tileEl(sid ? itemIcon(sid) : SLOT_EMPTY_ICON[sk], { id: sid, cards: sid ? L.cardsIn(p, sk) : null, cls: (sid ? tileClass(sid) : 'empty ghost'), sel: sk === slot, label: L.SLOT_NAME[sk] + (sid ? ' ' + itemName(sid) : ' ว่าง') },
+        () => { ui.eqSlot = sk; ui.eqPick = null; again(); }));
+      cell.appendChild(el('span', 'cap', L.SLOT_NAME[sk]));
+      left.appendChild(cell);
     }
-    box.appendChild(el('h3', null, 'อุปกรณ์ในกระเป๋า'));
-    box.appendChild(rarityLegend());
-    const ids = Object.keys(state.inv).filter(k => L.ITEMS[k] && L.ITEMS[k].type === 'equip').sort((a, b) => L.ITEMS[a].minLevel - L.ITEMS[b].minLevel);
-    const grid = el('div', 'grid');
-    for (const id of ids) {
-      const it = L.ITEMS[id];
-      grid.appendChild(tileEl(itemIcon(id), { id, cls: tileClass(id), count: state.inv[id], lv: it.minLevel > 1 ? it.minLevel : 0, sel: !!s2 && s2.kind === 'bag' && s2.id === id,
-        dim: !L.canEquip(p, id).ok, label: it.name, rec: upg.list.some(u => u.id === id) }, () => { ui.eqSel = { kind: 'bag', id }; openChar(); }));
+    wb.appendChild(left);
+    // ---- ขวา: โต๊ะจัดการช่องที่เลือก ----
+    const right = el('div', 'eqbench');
+    const head = el('div', 'eqhead box');
+    head.appendChild(tileEl(id ? itemIcon(id) : SLOT_EMPTY_ICON[slot], { id, cards: id ? cs : null, cls: (id ? tileClass(id) : 'empty ghost'), label: id ? itemName(id) : 'ว่าง' }, null));
+    const tx = el('div', 'eqtxt');
+    tx.appendChild(el('div', 'small', L.SLOT_NAME[slot]));
+    tx.appendChild(el('b', null, id ? eqName(id) : 'ยังไม่ได้สวม'));
+    if (id) tx.appendChild(el('div', 'small', L.itemDesc(id).split('\n')[0] + (refineText(id) ? ' · ' + refineText(id) : '')));
+    head.appendChild(tx);
+    if (id) { const off = el('button', 'btn sm', 'ถอด'); off.type = 'button'; off.addEventListener('click', () => { L.unequipItem(p, state.inv, slot); addLog('ถอด ' + itemName(id)); save(); ui.eqPick = null; again(); }); head.appendChild(off); }
+    right.appendChild(head);
+    // ช่องการ์ด (แตะการ์ดที่ใส่อยู่ = ถอดทันที)
+    if (n) {
+      const row = el('div', 'cardrow mini eqsock');
+      row.appendChild(el('span', 'small', '🃏 ช่องการ์ด'));
+      for (let i = 0; i < n; i++) row.appendChild(tileEl(cs[i] ? itemIcon(cs[i]) : '+', { id: cs[i], cls: (cs[i] ? tileClass(cs[i]) : 'empty') + ' sm', label: cs[i] ? 'ถอด ' + itemName(cs[i]) : 'ช่องการ์ดว่าง' },
+        cs[i] ? (cid => () => { L.unslotCard(p, state.inv, slot, i); addLog('ถอด ' + itemName(cid)); save(); ui.eqPick = null; again(); })(cs[i]) : () => { ui.eqMode = 'card'; again(); }));
+      right.appendChild(row);
     }
-    if (!ids.length) box.appendChild(el('p', 'small', 'ไม่มีอุปกรณ์สำรองในกระเป๋า — ซื้อที่พ่อค้าโมจิ หรือรอมอนสเตอร์ดรอป'));
-    else box.appendChild(grid);
+    // รายการที่ใส่ช่องนี้ได้
+    const cand = Object.keys(state.inv).filter(k => L.ITEMS[k] && L.ITEMS[k].type === 'equip' && L.slotAccepts(slot, L.ITEMS[k].slot) && L.canEquip(p, k).ok)
+      .sort((x, y) => (upg.list.some(u => u.id === y) ? 1 : 0) - (upg.list.some(u => u.id === x) ? 1 : 0) || L.ITEMS[y].minLevel - L.ITEMS[x].minLevel);
+    const cardType = L.CARD_TYPE_OF_SLOT[slot];
+    const free = n ? Object.keys(state.inv).filter(k => L.ITEMS[k] && L.ITEMS[k].type === 'card' && L.ITEMS[k].cardSlot === cardType).sort((x, y) => L.rarityOf(y) - L.rarityOf(x)) : [];
+    const seg = el('div', 'seg');
+    const mkSeg = (mode, label) => { const b = el('button', 'btn sm' + (ui.eqMode === mode ? ' main' : ''), label); b.type = 'button'; b.addEventListener('click', () => { ui.eqMode = mode; ui.eqPick = null; again(); }); seg.appendChild(b); };
+    mkSeg('swap', '🎒 เปลี่ยนอุปกรณ์ (' + cand.length + ')');
+    if (n) mkSeg('card', '🃏 ใส่การ์ด (' + free.length + ')');
+    right.appendChild(seg);
+    // ตัวอย่างของที่เลือก (อยู่ใต้แท็บทันที ไม่ต้องเลื่อน): แตะรายการ = ดูรายละเอียด · ปุ่มยืนยัน = ใส่จริง
+    const pick = ui.eqPick && state.inv[ui.eqPick] ? ui.eqPick : null;
+    if (pick) {
+      const it = L.ITEMS[pick], isCard = it.type === 'card', pv = el('div', 'box recbox eqpreview');
+      pv.appendChild(el('b', null, itemIcon(pick) + ' ' + it.name));
+      let desc = L.itemDesc(pick);
+      if (!isCard) { const cmp = equipCompare(p, pick); if (cmp) desc += '\n' + cmp; }
+      pv.appendChild(el('div', 'small dsc', desc));
+      const acts = el('div', 'acts');
+      if (isCard) {
+        const can = cs.length < n, b = el('button', 'btn sm main', can ? '🃏 ใส่การ์ด' : 'ช่องการ์ดเต็ม (แตะการ์ดที่ใส่อยู่เพื่อถอดก่อน)'); b.type = 'button'; b.disabled = !can;
+        b.addEventListener('click', () => { const r = L.slotCard(p, state.inv, slot, pick); if (r.ok) { addLog('🃏 ใส่ ' + itemName(pick) + ' ลง' + itemName(id)); sfx('potion'); save(); } ui.eqPick = null; again(); });
+        acts.appendChild(b);
+      } else {
+        const b = el('button', 'btn sm main', 'สวมใส่ลง' + L.SLOT_NAME[slot]); b.type = 'button';
+        b.addEventListener('click', () => { equipNow(pick, slot); ui.eqPick = null; again(); });
+        acts.appendChild(b);
+      }
+      const c = el('button', 'btn sm', 'ยกเลิก'); c.type = 'button'; c.addEventListener('click', () => { ui.eqPick = null; again(); }); acts.appendChild(c);
+      pv.appendChild(acts);
+      right.appendChild(pv);
+    }
+    const list = ui.eqMode === 'card' ? free : cand, g = el('div', 'grid eqlist');
+    for (const k of list) g.appendChild(tileEl(itemIcon(k), { id: k, cls: tileClass(k), count: state.inv[k], lv: L.ITEMS[k].minLevel > 1 ? L.ITEMS[k].minLevel : 0, sel: k === pick,
+      rec: ui.eqMode !== 'card' && upg.list.some(u => u.id === k), dim: ui.eqMode === 'card' && cs.length >= n, label: itemName(k) }, () => { ui.eqPick = k === ui.eqPick ? null : k; again(); }));
+    if (list.length) right.appendChild(g);
+    else right.appendChild(el('p', 'small', ui.eqMode === 'card' ? 'ไม่มีการ์ดชนิด' + L.CARD_TYPE_NAME[cardType] + 'ในกระเป๋า — การ์ดได้จากการล่ามอนสเตอร์ (โอกาสน้อยมาก) ดูที่ 📖 สมุดการ์ด'
+      : 'ไม่มีอุปกรณ์สำรองที่ใส่ช่องนี้ได้ — ซื้อที่พ่อค้าโมจิ หรือรอมอนสเตอร์ดรอป'));
+    right.appendChild(rarityLegend());
+    wb.appendChild(right);
+    box.appendChild(wb);
     return box;
   }
 
@@ -5338,6 +5413,23 @@ const Logic = (function () {
       const jb = el('div', 'bar jbar'); const fill = el('i'); fill.style.width = Math.round(Math.min(1, (p.jobExp || 0) / L.jobExpToNext(jl)) * 100) + '%';
       jb.appendChild(fill); jb.appendChild(el('span', null, 'Job EXP ' + (p.jobExp || 0) + ' / ' + L.jobExpToNext(jl))); box.appendChild(jb);
     }
+    // แถบช่องสกิล (0.60): อยู่บนสุดตลอด — แตะสกิลในต้นไม้เพื่อเลือก แล้วแตะช่องเพื่อใส่ (แตะช่องที่มีสกิลอยู่ = เลือกสกิลนั้น) ไม่ต้องเลื่อนไปหาปุ่ม
+    {
+      const slotsNow0 = L.skillSlots(p), sbar = el('div', 'box skslots'), cnt = L.skillSlotCount(p);
+      sbar.appendChild(el('div', 'small', '⌨ ช่องสกิล — เลือกสกิลด้านล่าง แล้วแตะช่องที่ต้องการ'));
+      const row = el('div', 'skrow2');
+      for (let i = 0; i < cnt; i++) {
+        const sid = slotsNow0[i], cell = el('div', 'eqslot' + (sid && sid === ui.skSel ? ' cur' : ''));
+        const can = !!ui.skSel && L.SKILLS[ui.skSel] && !L.SKILLS[ui.skSel].passive && L.skillLevel(p, ui.skSel) > 0;
+        cell.appendChild(tileEl(sid ? L.SKILLS[sid].icon : '+', { cls: sid ? 'r2' : 'empty', sel: !!sid && sid === ui.skSel, label: 'ช่องสกิล ' + (i + 1) + (sid ? ' ' + L.SKILLS[sid].name : ' ว่าง') },
+          () => { if (can && sid !== ui.skSel) { L.setSkillSlot(p, i, ui.skSel); save(); } else if (sid) ui.skSel = sid; openChar(); }));
+        cell.appendChild(el('span', 'cap', 'ช่อง ' + (i + 1) + ' (กด ' + (i < 3 ? i + 1 : i + 2) + ')'));
+        row.appendChild(cell);
+      }
+      sbar.appendChild(row);
+      box.appendChild(sbar);
+    }
+    const wrap = el('div', 'skwrap'), lcol = el('div');
     // ต้นไม้สกิล: ตารางคอลัมน์ 3 × แถวตาม pos ของแต่ละสกิล + เส้นเชื่อมจากสกิลที่ต้องอัพก่อน (สีส้ม = เงื่อนไขครบแล้ว)
     const ROW_H = 92, rows = Math.max.apply(null, ids.map(i => L.SKILLS[i].pos[0])) + 1, slotsNow = L.skillSlots(p);
     const tree = el('div', 'sktree'); tree.style.height = rows * ROW_H + 'px';
@@ -5360,8 +5452,8 @@ const Logic = (function () {
       cell.appendChild(b); cell.appendChild(el('div', 'skn', s.name));
       tree.appendChild(cell);
     }
-    box.appendChild(tree);
-    box.appendChild(el('p', 'small', '🟠 เส้นส้ม = ปลดล็อกแล้ว · วงประ = สกิลติดตัว (ไม่ต้องกด ได้โบนัสถาวร) · ตัวเลขในวงเล็กมุมบน = ช่องปุ่มที่ใส่ไว้'));
+    lcol.appendChild(tree);
+    lcol.appendChild(el('p', 'small', '🟠 เส้นส้ม = ปลดล็อกแล้ว · วงประ = สกิลติดตัว (ไม่ต้องกด ได้โบนัสถาวร) · ตัวเลขในวงเล็กมุมบน = ช่องปุ่มที่ใส่ไว้'));
     const id = ui.skSel, s = L.SKILLS[id], lv = L.skillLevel(p, id), cur = L.skillInfo(p, id), nxt = lv && lv < L.SKILL_MAX ? L.skillInfo(p, id, lv + 1) : null;
     const d = el('div', 'box detail');
     const nm = el('div', 'nm', s.icon + ' ' + s.name);
@@ -5417,7 +5509,7 @@ const Logic = (function () {
       a.appendChild(sb);
     }
     d.appendChild(a);
-    box.appendChild(d);
+    wrap.appendChild(lcol); wrap.appendChild(d); box.appendChild(wrap);
     box.appendChild(el('p', 'small', 'ได้แต้มสกิล 1 แต้มต่อ Job Level (Job EXP ได้พร้อม EXP ตอนฆ่ามอนสเตอร์/ทำเควส) · อัพจากเลเวล n เป็น n+1 ใช้ n แต้ม · สกิลที่สูงขึ้นแรงขึ้นและใช้ SP เพิ่มเล็กน้อย · สกิลล่างของต้นไม้ปลดล็อกเมื่ออัพสกิลต้นทางถึงเลเวลที่กำหนด · อยากแจกใหม่? คุยกับครูฝึกไลล่า (เสีย ' + L.resetCost(p) + ' Zeny)'));
     return box;
   }
@@ -9925,6 +10017,22 @@ const Logic = (function () {
   $('chatSend').addEventListener('click', () => { const v = $('chatIn').value; chatClose(); chatSend(v); });
 
   $('bEmote').addEventListener('click', () => { if (game.modal && game.modalKind === 'emote') closeModal(); else if (!game.modal) openEmotes(); });
+  // ---------- ซ่อน/แสดง กล่องสถานะ · แถบเมนู · ปุ่มสกิล (0.60) — จำค่าไว้ในเครื่อง (ปุ่มลัดคีย์บอร์ดยังใช้ได้ตามเดิม) ----------
+  const HIDE_BTN = { hud: ['tgHud', '📊', 'กล่องสถานะ'], menu: ['tgMenu', '☰', 'เมนู'], skill: ['tgSkill', '⚔', 'ปุ่มสกิล'] };
+  function applyHide() {
+    for (const k in HIDE_BTN) {
+      const off = !!settings.hide[k], b = $(HIDE_BTN[k][0]);
+      document.body.classList.toggle('hide-' + k, off);
+      b.textContent = off ? HIDE_BTN[k][1] : '–';
+      b.title = off ? 'แสดง' + HIDE_BTN[k][2] : 'ซ่อน' + HIDE_BTN[k][2];
+      b.setAttribute('aria-label', b.title);
+    }
+  }
+  for (const k in HIDE_BTN) {
+    const b = $(HIDE_BTN[k][0]);
+    b.addEventListener('pointerdown', e => { e.stopPropagation(); unlockAudio(); });
+    b.addEventListener('click', e => { e.stopPropagation(); settings.hide[k] = !settings.hide[k]; saveSettings(); applyHide(); });
+  }
   // ---------- เล่นบนมือถือ/แท็บเล็ต (0.59): จอยเดินมุมซ้ายล่าง ----------
   // ลากนิ้วบนจอย = เดินตามทิศ (คิดตามทิศบนจอเหมือนปุ่ม WASD) · ปล่อยนิ้ว = หยุด · แตะพื้น/มอนสเตอร์ยังใช้ได้เหมือนเดิม
   // จอยกับปุ่มสกิลแบบเรียงโค้งจะโชว์เมื่อเป็นจอสัมผัส (body.touch) — เล่นด้วยเมาส์/คีย์บอร์ดหน้าตาเหมือนเดิม
@@ -10162,6 +10270,7 @@ const Logic = (function () {
 
   // ---------- เริ่มเกม ----------
   loadSettings();
+  applyHide();
   state = L.newGameState();   // ตัวสมมติหลังฉากหน้าเลือกตัวละคร — ยังไม่ผูกกับตัวละครใด (active = null จึงไม่เซฟ)
   world = L.createWorld(state.player.map, WORLD_SEED);
   $('ver').textContent = 'Aetheria v' + L.VERSION;
