@@ -476,7 +476,7 @@ noscript{position:fixed;inset:0;display:flex;align-items:center;justify-content:
 // =====================================================================
 const Logic = (function () {
   'use strict';
-  const VERSION = '0.67.0';
+  const VERSION = '0.68.0';
   const SAVE_VERSION = 4;
   const MAX_LEVEL = 150;   // 0.13: ขยายจาก 50 เป็น 99 · 0.16: ขยายเป็น 120 · 0.33: ขยายเป็น 150
   const MAP_W = 1600, MAP_H = 1200;
@@ -7768,10 +7768,10 @@ const Logic = (function () {
   // ---------- ตัวละครผู้เล่น: การ์ตูนหัวโต ไล่เฉดสี+แสงเงา ขา/แขนขยับ ชุดและอาวุธเปลี่ยนตามระดับ ----------
   // สัดส่วนราว 3 หัว สูงเท่า NPC/มอนสเตอร์ (ไม่ขยาย) โทนสีนุ่มแบบดิน ตาเล็กเรียบ เส้นขอบบางสีน้ำตาลเข้ม
   const INK = '#3a2820', SKIN_DEFAULT = '#f6d9b8'; let SKIN = SKIN_DEFAULT, EYE_OVERRIDE = null;   // SKIN/EYE_OVERRIDE เปลี่ยนชั่วคราวตอนวาดตัวละครที่ผู้เล่นเลือกหน้าตาเอง (0.56) แล้วคืนค่าเดิม
-  const HAIR_COLOR = { novice: '#a8703d', swordsman: '#d9aa55', mage: '#98a2d6', archer: '#b4743a', knight: '#e0b860', highWizard: '#c9b8f0', hunter: '#8a5a2e' };
+  const HAIR_COLOR = { novice: '#a8703d', swordsman: '#f0c050', mage: '#98a2d6', archer: '#b4743a', knight: '#e0b860', highWizard: '#c9b8f0', hunter: '#8a5a2e' };
   const PAL = {   // ชุดหลัก/กางเกง/ผ้าคาด/ขอบ/ผ้าคลุม ของแต่ละอาชีพ (สีหม่น ไม่สดจัด)
     novice:    { top: '#d8bd8c', pants: '#8f6b4a', sash: '#b5573f', trim: '#f1e2bd' },
-    swordsman: { top: '#a9794c', pants: '#6f5a4a', sash: '#c8a24a', trim: '#cfd5dc', cape: '#9c4a3a' },
+    swordsman: { top: '#4a3228', pants: '#2e2724', sash: '#8a5a34', trim: '#cfd5dc', cape: '#b3262e' },
     mage:      { top: '#7c8fc0', pants: '#5f6f9c', sash: '#e9d9a6', trim: '#efe3c4' },
     archer:    { top: '#86a063', pants: '#7a6246', sash: '#b08a4a', trim: '#cfe0a8' },
     // อาชีพขั้นสูง: สีเข้มขึ้น/มีทองประดับ (รูปทรงใช้ของสายเดิม + ของตกแต่งใน drawAdvHead/drawAdvBody)
@@ -7829,7 +7829,8 @@ const Logic = (function () {
   const ACC_LOOK = { scarfRed: { c: '#d9484a', d: '#a42a2c' }, copperRing: { c: '#c98a4a', d: '#8a5a2a' }, travelCape: { c: '#7a5a8a', d: '#5a3f68' },
     silverPendant: { c: '#d8e2ee', d: '#4aa8ff' }, frostCloak: { c: '#c9e2fa', d: '#7fb0e0' }, angelWings: { c: '#ffffff', d: '#ffe08a' } };
   // สัดส่วนตัวละคร (0.57): ยืดทั้งตัวให้สูงเพรียวขึ้น แล้วย่อหัวให้เล็กลง (ค่า HEAD_* ชดเชยการยืดแล้ว หัวจึงไม่เพี้ยนเป็นรูปยาว) ≈ 3.5 หัว จากเดิม ≈ 2.5 หัว
-  const BODY_W = 0.94, BODY_H = 1.28, HEAD_W = 0.78, HEAD_H = 0.6;
+  const BODY_W = 0.9, BODY_H = 1.5, HEAD_W = 0.7, HEAD_H = 0.47;   // 0.68: สูงขึ้น หัวเล็กลง ≈ 4.5 หัว
+  let legExt = 0;   // 0.68: ขายาวขึ้น (ยกลำตัวขึ้นจากพื้น) — ตั้งค่าใน drawPlayerInner ทุกครั้ง ยกเว้นจอมเวทย์ (ชุดคลุมยาว)
   const pv = { x: 0, y: 0, up: false };   // ตำแหน่งเฟรมก่อน — ใช้รู้ว่ากำลังเดินขึ้น (จะหันหลังให้ผู้เล่น)
   function tuft(ax, ay, tx, ty, bx, by) {   // ช่อผมโค้งมนรูปใบไม้ (ฐาน a–b ปลาย t) แทนสามเหลี่ยมแหลม
     ctx.beginPath(); ctx.moveTo(ax, ay);
@@ -7939,7 +7940,7 @@ const Logic = (function () {
     if (tier >= 2) { ctx.fillStyle = k.gem; circle(0, -2.7, tier >= 3 ? 1.6 : 1.1); ink(0.7); }
   }
   function drawSwordGfx(k, tier, cz) {
-    const t = game.time, L0 = [0, 23, 27, 31][tier], w = [0, 2.2, 2.6, 3.1][tier] * (k.blade === 'wide' ? 1.25 : k.blade === 'thin' ? 0.8 : 1), bs = k.blade;
+    const t = game.time, L0 = [0, 28, 33, 38][tier], w = [0, 2.2, 2.6, 3.1][tier] * (k.blade === 'wide' ? 1.25 : k.blade === 'thin' ? 0.8 : 1), bs = k.blade;
     ctx.rotate(cz.th);
     const off = (side, y) => bs === 'wave' ? Math.sin(y * 0.8) * 0.8 : bs === 'jag' ? (Math.round(-y / 3.5) % 2) * 0.9 : bs === 'serr' ? (side > 0 ? (Math.round(-y / 3) % 2) * 1.1 : 0) : bs === 'bolt' ? (Math.round(-y / 5) % 2 ? 0.7 : -0.2) : bs === 'star' ? (Math.round(-y / 6) % 2 ? 0.5 : 0) : 0;
     if (tier === 3) glow(0, -L0 * 0.5, L0 * 0.75, k.rgb, k.fx ? 0.26 : 0.22);
@@ -8199,7 +8200,7 @@ const Logic = (function () {
   // ค่าพลังจากอุปกรณ์ยังทำงานเหมือนเดิม — มีผลเฉพาะ "หน้าตา"
   const OUTFIT = {
     novice:    { top: '#e8d3a2', topD: '#bfa273', vest: '#8a6a4a', vestD: '#5f4630', scarf: '#c8503c', scarfD: '#8f2f20', pants: '#8f6b4a', sleeve: '#e8d3a2', glove: null, boot: { c: '#6b4a30', d: '#b68a55', style: 'lace' } },
-    swordsman: { top: '#a9794c', topD: '#74502e', steel: '#c4cbd4', steelD: '#7f8a98', leather: '#6b4630', leatherD: '#43291a', gold: '#dbb04e', cape: '#a8483a', capeD: '#6d2b22', pants: '#5e4a3c', sleeve: '#8a5f38', glove: '#5e3e28', boot: { c: '#5a3d27', d: '#a8803f', style: 'strap' } },
+    swordsman: { top: '#4a3228', topD: '#2c1c15', steel: '#b9c0ca', steelD: '#6f7a88', leather: '#8a5632', leatherD: '#4a2c18', gold: '#d2a548', cape: '#b3262e', capeD: '#6b141c', pants: '#2e2724', sleeve: '#a8302f', glove: '#7a4a2a', boot: { c: '#7d4c2a', d: '#b07a44', style: 'strap' } },
     knight:    { top: '#6f7d96', topD: '#4a566c', steel: '#d6dde9', steelD: '#8d99ac', gold: '#e3b83c', goldD: '#a67c1a', red: '#b83a3a', redD: '#7a2020', pants: '#444c5a', sleeve: '#7d8aa0', glove: '#c9d1de', boot: { c: '#b4bece', d: '#e3b83c', style: 'plate' } },
     mage:      { robe: '#5f74b8', robeL: '#8da0dc', robeD: '#3d4d88', inner: '#2f3b6e', trim: '#f1e2a8', star: '#ffe9a0', sash: '#d9c37a', sleeve: '#5f74b8', glove: null, boot: { c: '#4a3a6a', d: '#f1e2a8', style: 'point' } },
     highWizard: { robe: '#5a3f9c', robeL: '#8a6ad0', robeD: '#33206a', inner: '#2a1850', trim: '#ffd36b', trimD: '#b8892a', star: '#ffe9a0', gem: '#ff6fb0', sash: '#ffd36b', sleeve: '#4d3488', glove: null, boot: { c: '#33206a', d: '#ffd36b', style: 'point' } },
@@ -8236,12 +8237,13 @@ const Logic = (function () {
     if (p.equip.garment && L.baseOf(p.equip.garment) === 'godMantle') drawGarment('godMantle', bx, y, f, t, hs);
     const sway = Math.sin(t * (mv ? 10 : 2.5)) * (mv ? 2.8 : 0.9) - (mv ? 3 * f : 0) + hs;
     if (j === 'swordsman' || j === 'knight') {   // ผ้าคลุมหลัง (ขอบล่างหยัก มีผ้าซับด้านใน)
-      const kn = j === 'knight', bot = kn ? y - 2 : y - 5, w = kn ? 8 : 6.8, cc = kn ? O.red : O.cape, cd = kn ? O.redD : O.capeD;
+      const kn = j === 'knight', bot = kn ? y - 2 + legExt * 0.6 : y + legExt - 2, w = kn ? 8 : 9.2, cc = kn ? O.red : O.cape, cd = kn ? O.redD : O.capeD;
       ctx.fillStyle = lin(bx, y - 30, bx, bot, cc, 0.2, -0.3);
-      ctx.beginPath(); ctx.moveTo(bx - w, y - 30); ctx.lineTo(bx + w, y - 30); ctx.lineTo(bx + w + 4 + sway, bot - 2);
-      for (let i = 0; i < 4; i++) { ctx.lineTo(bx + w + 4 + sway - (i + 0.5) * (2 * w + 8) / 4, bot + (i % 2 ? -1.8 : 1.6)); }
-      ctx.lineTo(bx - w - 4 + sway, bot - 2); ctx.closePath(); ctx.fill(); ink(1.2);
-      ctx.fillStyle = cd; poly([[bx + w - 2.5, y - 30], [bx + w, y - 30], [bx + w + 4 + sway, bot - 2], [bx + w + 1.5 + sway, bot - 2]]);   // ผ้าซับ
+      ctx.beginPath(); ctx.moveTo(bx - w, y - 30); ctx.lineTo(bx + w, y - 30); ctx.lineTo(bx + w + (kn ? 4 : 7) + sway, bot - 2);
+      const nt = kn ? 4 : 6, span = 2 * w + (kn ? 8 : 14);
+      for (let i = 0; i < nt; i++) { ctx.lineTo(bx + w + (kn ? 4 : 7) + sway - (i + 0.5) * span / nt, bot + (kn ? (i % 2 ? -1.8 : 1.6) : [2.4, -2.6, 1.2, -3.4, 2, -1.6][i])); }
+      ctx.lineTo(bx - w - (kn ? 4 : 7) + sway, bot - 2); ctx.closePath(); ctx.fill(); ink(1.2);
+      { const ex = kn ? 4 : 7; ctx.fillStyle = cd; poly([[bx + w - 2.5, y - 30], [bx + w, y - 30], [bx + w + ex + sway, bot - 2], [bx + w + ex - 2.5 + sway, bot - 2]]); }   // ผ้าซับ
       if (kn) { ctx.strokeStyle = O.gold; ctx.lineWidth = 1.1; ctx.beginPath(); ctx.moveTo(bx - w - 4 + sway, bot - 2); ctx.lineTo(bx - w, y - 30); ctx.moveTo(bx + w + 4 + sway, bot - 2); ctx.lineTo(bx + w, y - 30); ctx.stroke(); if (back) { ctx.fillStyle = O.gold; ctx.fillRect(bx - 0.9 + sway * 0.5, y - 25, 1.8, 9); ctx.fillRect(bx - 3.2 + sway * 0.5, y - 22, 6.4, 1.8); } }
       ctx.fillStyle = O.gold; circle(bx - 5.4, y - 29.6, 1.2); circle(bx + 5.4, y - 29.6, 1.2);   // เข็มกลัดยึดผ้าคลุม
     } else if (j === 'highWizard') {   // ปกคอสูงแผ่เป็นพัดด้านหลังหัว
@@ -8329,7 +8331,7 @@ const Logic = (function () {
           for (const s of [-1, 1]) { ctx.fillStyle = lin(bx + s * 3, y - 15, bx + s * 7, y - 9, O.leather, 0.22, -0.28); poly([[bx + s * 1.4, y - 14.8], [bx + s * 7.4, y - 14.8], [bx + s * 7.8, y - 9.4], [bx + s * 2.2, y - 9.8]]); ink(0.8); dashLine(bx + s * 2.4, y - 13.6, bx + s * 6.8, y - 13.6, O.gold, 0.6); }   // แผ่นหนังห้อยเอว
           ctx.fillStyle = O.leatherD; rrect(bx + 4.4 * f - 1.8, y - 14.4, 3.6, 4, 1); ink(0.7);   // กระเป๋าเล็ก
         }
-        ctx.fillStyle = kn ? O.red : '#f4ead2'; if (!kn) { poly([[bx - 3.6, y - 30], [bx + 3.6, y - 30], [bx, y - 25.4]]); ink(0.9); }   // ปกคอผ้า
+        ctx.fillStyle = kn ? O.red : O.cape; if (!kn) { poly([[bx - 7.4, y - 31.6], [bx + 7.4, y - 31.6], [bx + 8.4, y - 27.4], [bx + 3, y - 25.4], [bx, y - 27], [bx - 3, y - 25.4], [bx - 8.4, y - 27.4]]); ink(0.9); ctx.fillStyle = O.capeD; poly([[bx - 2.4, y - 31], [bx + 2.4, y - 31], [bx, y - 27.4]]); }   // ปกคอผ้า
         if (!kn) { ctx.fillStyle = O.cape; poly([[bx + 4.8 * f, y - 15], [bx + 7.8 * f + hs * 0.5, y - 7.2], [bx + 5.2 * f, y - 8.6]]); ink(0.8); }   // ชายผ้าห้อย
       } else if (kn) { ctx.fillStyle = lin(bx - 6, y - 29, bx + 6, y - 19, O.steel, 0.3, -0.28); poly([[bx - 6.3, y - 29.4], [bx + 6.3, y - 29.4], [bx + 6.8, y - 18], [bx - 6.8, y - 18]]); ink(1); ctx.strokeStyle = O.steelD; ctx.lineWidth = 0.9; ctx.beginPath(); ctx.moveTo(bx, y - 29); ctx.lineTo(bx, y - 18.4); ctx.stroke(); }
       return;
@@ -8528,7 +8530,7 @@ const Logic = (function () {
   function drawSwordTrail(p, wx, wy, z) {
     if (pvMode || z.kind !== 'sword') return;
     const T = rt.trail || (rt.trail = []), now = game.time, f = rt.face;
-    const Ls = [0, 23, 27, 31][WEAPON_TIER[L.baseOf(p.equip.weapon)] || 1];
+    const Ls = [0, 28, 33, 38][WEAPON_TIER[L.baseOf(p.equip.weapon)] || 1];
     if (z.trail > 0.08) { const s = Math.sin(z.th), c = Math.cos(z.th); T.push({ ix: wx + f * s * Ls * 0.35, iy: wy - c * Ls * 0.35, tx: wx + f * s * Ls * 1.12, ty: wy - c * Ls * 1.12, t: now, a: z.trail, rgb: z.trailRgb }); }
     while (T.length && (now - T[0].t > 0.24 || now < T[0].t)) T.shift();
     if (T.length < 2) return;
@@ -8576,7 +8578,8 @@ const Logic = (function () {
     const calmSafe = !pvMode && !rt.moving && z.stance < 0.05 && rt.swingT <= 0 && L.inSafe(p.map, p);   // ในค่ายปลอดภัย: หายใจช้าและลึก
     const bob = rt.moving ? -Math.abs(walk) * 1.6 : Math.sin(t * (calmSafe ? 1.5 : 2.2 + 2.2 * z.stance)) * (calmSafe ? 0.95 : 0.6 + 0.5 * z.stance);     // เดินเด้ง / ยืนหายใจ (ท่าเตรียมสู้หายใจถี่ขึ้น)
     const ux = ((rt.moving ? 1 : 0) + z.lean) * f;   // เอนตัว: ไปหน้าตอนฟัน / ถอยหลังตอนง้างและโดนตี
-    const x = p.x + z.lunge * f, y = p.y + bob + z.crouch - z.air, bx = x + ux, hx0 = x + ux * 1.5, hy = y - 40;   // y = พื้นลำตัว, bx = กลางลำตัว, hx0/hy = กลางหัว · lunge = ก้าวพุ่ง
+    legExt = job === 'mage' ? 0 : 6;
+    const x = p.x + z.lunge * f, y = p.y + bob + z.crouch - z.air - legExt, bx = x + ux, hx0 = x + ux * 1.5, hy = y - 40;   // y = พื้นลำตัว, bx = กลางลำตัว, hx0/hy = กลางหัว · lunge = ก้าวพุ่ง
     const pal = PAL[p.job], hair = HAIR_COLOR[p.job], O = OUTFIT[p.job] || OUTFIT.novice;   // ชุดตายตัวตามอาชีพ (0.24) ไม่ขึ้นกับเกราะที่ใส่
     const sleeve = O.sleeve || O.robe;
     const hs = pvMode ? (rt.moving ? -f * 1.6 + Math.sin(t * 14 + 1) * 1 : Math.sin(t * 1.7) * 0.6) : life.hs + (rt.moving ? Math.sin(t * 14 + 1) * 0.8 : Math.sin(t * 1.7) * 0.6);   // ผม/ผ้าพลิ้ว (สปริง 0.39)
@@ -8666,9 +8669,11 @@ const Logic = (function () {
       ctx.quadraticCurveTo(hx0 - 9 * f, hy + 5, hx0 - 8 * f, hy + 3); ctx.closePath(); ctx.fill(); ink(1);
     } else if (job === 'swordsman') {   // ผมตั้งเป็นช่อโค้งมน (ไม่แหลมเหลี่ยม)
       ctx.fillStyle = hairG;
-      tuft(hx0 - 9, hy - 5, hx0 - 9.5 + hs * 0.3, hy - 15, hx0 - 2.5, hy - 8); ink(1);
-      tuft(hx0 - 4, hy - 8, hx0 + hs * 0.5, hy - 17.5, hx0 + 4.5, hy - 8); ink(1);
-      tuft(hx0 + 2, hy - 8, hx0 + 10 + hs * 0.4, hy - 14.5, hx0 + 10, hy - 4); ink(1);
+      tuft(hx0 - 10, hy - 4, hx0 - 12.5 + hs * 0.4, hy - 14, hx0 - 3, hy - 8); ink(1);
+      tuft(hx0 - 7, hy - 8, hx0 - 6.5 + hs * 0.4, hy - 20, hx0 - 0.5, hy - 9); ink(1);
+      tuft(hx0 - 3, hy - 9, hx0 + 1 + hs * 0.6, hy - 22.5, hx0 + 5, hy - 8.5); ink(1);
+      tuft(hx0 + 2, hy - 9, hx0 + 9 + hs * 0.5, hy - 19, hx0 + 10, hy - 4); ink(1);
+      tuft(hx0 + 6, hy - 6, hx0 + 14 + hs * 0.4, hy - 10, hx0 + 10.4, hy + 1); ink(1);
     } else if (job === 'novice') {      // ผมยุ่งนิด ๆ
       ctx.fillStyle = hairG;
       tuft(hx0 - 3.5, hy - 8.5, hx0 + 1.5 * f + hs * 0.5, hy - 16, hx0 + 4.5, hy - 8.5); ink(1);
