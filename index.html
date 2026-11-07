@@ -476,7 +476,7 @@ noscript{position:fixed;inset:0;display:flex;align-items:center;justify-content:
 // =====================================================================
 const Logic = (function () {
   'use strict';
-  const VERSION = '0.68.0';
+  const VERSION = '0.69.0';
   const SAVE_VERSION = 4;
   const MAX_LEVEL = 150;   // 0.13: ขยายจาก 50 เป็น 99 · 0.16: ขยายเป็น 120 · 0.33: ขยายเป็น 150
   const MAP_W = 1600, MAP_H = 1200;
@@ -722,6 +722,75 @@ const Logic = (function () {
   // ระบบอัพสกิล: ปลดล็อกแล้วเริ่ม Lv1 ฟรี · แต้มสกิลได้จากเลเวล (derived ไม่เก็บ) · อัพ Lv n→n+1 ใช้ n แต้ม · ยิ่งสูงยิ่งแรงและกิน SP มากขึ้นเล็กน้อย
   const SKILL_MAX = 5, SKILL_MULT_STEP = 0.12, SKILL_COST_STEP = 0.08;
 
+  // ---------- สกิลเสริมสายละ 2 ตัว × 3 ขั้น (0.69): ใช้ระบบสถานะใหม่ (มึน ชะลอ แช่แข็ง เผาไหม้ พิษ) + โล่ + ดูดเลือด/มานา + ยั่วยุ + ถอยยิง + เจาะเกราะ + เล็งจุดอ่อน ----------
+  // ฟิลด์ใหม่ของสกิล: status [{kind,dur,chance?,dps?,k?}] ติดที่เป้าหมายที่โดน · shield {pct,dur} โล่กันดาเมจ (สัดส่วนของ HP สูงสุด) · util {radius,pull,taunt} ดึง/ยั่วมอนรอบตัว
+  //   leech {hp: สัดส่วนของดาเมจ, sp: สัดส่วนของ SP สูงสุด} · retreat ระยะถอย · ignoreDef 0..1 · execute {below, mult}
+  // วางในแถว 7-9 ของต้นไม้สกิล (แถวว่างระหว่างทางจะถูกบีบอัดตอนแสดง) · สกิลขั้นแรกใช้ได้ต่อเนื่องถึงอาชีพขั้นสูง/ขั้นที่ 3
+  const SWORD_ALL = ['swordsman', 'knight', 'lordKnight'], KNIGHT_ALL = ['knight', 'lordKnight'], MAGE_ALL = ['mage', 'highWizard', 'archMage'],
+    HW_ALL = ['highWizard', 'archMage'], ARCH_ALL = ['archer', 'hunter', 'sniper'], HUNTER_ALL = ['hunter', 'sniper'];
+  function addMore(id, def, jobs, pos, req, pose, dur) {
+    const o = Object.assign({ mult: 0, hits: 0, aoe: null, cd: 0, cost: 0 }, def);
+    o.jobs = jobs.slice(); o.pos = pos; o.req = req.map(r => ({ id: r[0], lv: r[1] }));
+    SKILLS[id] = o; for (const j of jobs) JOB_SKILLS[j].push(id);
+    T3_POSE[id] = pose; T3_FX_DUR[id] = dur;
+  }
+  // ===== สายดาบ =====
+  addMore('provoke', { name: 'Provoke', short: 'ยั่วยุ', icon: '😤', minLevel: 30, cost: 16, cd: 18, self: true, rgb: '255,130,100', buff: { defPct: 0.15, dur: 10 }, util: { radius: 190, pull: 60, taunt: true },
+    fx: { style: 'burst', rgb: '255,130,100' }, desc: 'ตะโกนยั่ว ดึงมอนสเตอร์รอบตัวให้เข้ามาหาและหันมาตีเรา DEF +15% 10 วินาที เหมาะรวมมอนก่อนใช้สกิลวงกว้าง' },
+    SWORD_ALL, [7, 0], [['ironBody', 2]], 'roar', 1.0);
+  addMore('shieldWall', { name: 'Shield Wall', short: 'โล่พลัง', icon: '🛡️', minLevel: 35, cost: 30, cd: 35, self: true, rgb: '150,210,255', shield: { pct: 0.25, dur: 15 },
+    fx: { style: 'aura', rgb: '150,210,255' }, desc: 'สร้างโล่พลังกันดาเมจได้เท่า 25% ของ HP สูงสุด นาน 15 วินาที (หายเมื่อโดนจนหมด)' },
+    SWORD_ALL, [7, 1], [['endure', 2]], 'buff', 1.0);
+  addMore('shieldSlam', { name: 'Shield Slam', short: 'กระแทก', icon: '💢', minLevel: 50, cost: 40, mult: 2.0, hits: 1, cd: 14, aoe: { radius: 100, center: 'target' }, status: [{ kind: 'stun', dur: 2.5 }],
+    fx: { style: 'burst', rgb: '255,230,120' }, desc: 'ฟาดโล่กระแทกศัตรูวงเล็กรอบเป้าหมาย ทำให้มึนทำอะไรไม่ได้ 2.5 วินาที (บอสมึนได้แค่ครึ่งหนึ่ง) (อัศวิน)' },
+    KNIGHT_ALL, [8, 0], [['bowling', 2]], 'slam', 0.9);
+  addMore('bloodStrike', { name: 'Blood Strike', short: 'ฟันโลหิต', icon: '🩸', minLevel: 55, cost: 36, mult: 2.6, hits: 1, cd: 10, aoe: null, leech: { hp: 0.35 },
+    fx: { style: 'slash', rgb: '255,80,100' }, desc: 'ฟันหนักใส่ศัตรู 1 ตัว แล้วดูดเลือดฟื้น HP เท่า 35% ของดาเมจที่ทำได้ (อัศวิน)' },
+    KNIGHT_ALL, [8, 1], [['chargeStrike', 2]], 'slam', 0.9);
+  addMore('holyShield', { name: 'Holy Shield', short: 'โล่ศักดิ์สิทธิ์', icon: '⚜️', minLevel: 115, cost: 70, cd: 45, self: true, rgb: '255,235,150', shield: { pct: 0.45, dur: 20 }, heal: 0.1,
+    fx: { style: 'aura', rgb: '255,235,150' }, desc: 'โล่ศักดิ์สิทธิ์กันดาเมจได้เท่า 45% ของ HP สูงสุด นาน 20 วินาที พร้อมฟื้น HP 10% (จอมพลอัศวิน)' },
+    ['lordKnight'], [9, 0], [['lordSpirit', 2]], 'buff', 1.2);
+  addMore('judgementChain', { name: 'Judgement Chain', short: 'ตรวนพิพากษา', icon: '⛓️', minLevel: 118, cost: 80, mult: 1.6, hits: 1, cd: 20, aoe: { radius: 170, center: 'target' }, status: [{ kind: 'stun', dur: 3 }, { kind: 'slow', dur: 5, k: 0.5 }],
+    fx: { style: 'pillar', rgb: '255,235,160' }, desc: 'ตรวนแสงพันธนาการศัตรูวงกว้างรอบเป้าหมาย มึน 3 วินาที แล้วชะลอต่ออีก 5 วินาที (จอมพลอัศวิน)' },
+    ['lordKnight'], [9, 1], [['holyCross', 2]], 'sky', 1.2);
+  // ===== สายเวทย์ =====
+  addMore('ignite', { name: 'Ignite', short: 'เพลิงเผา', icon: '🔥', minLevel: 30, cost: 20, mult: 0.9, hits: 1, cd: 6, aoe: null, status: [{ kind: 'burn', dur: 6, dps: 0.35 }],
+    fx: { style: 'burst', rgb: '255,140,70' }, desc: 'ลูกไฟจุดศัตรู 1 ตัวให้ลุกไหม้ เสียเลือดต่อเนื่อง 6 วินาที ไม่สนเกราะ' },
+    MAGE_ALL, [7, 0], [['firebolt', 3]], 'cast', 0.8);
+  addMore('frostNova', { name: 'Frost Nova', short: 'คลื่นเยือกแข็ง', icon: '❄️', minLevel: 35, cost: 30, mult: 1.2, hits: 1, cd: 10, aoe: { radius: 130, center: 'self' }, status: [{ kind: 'slow', dur: 5, k: 0.45 }, { kind: 'freeze', dur: 1.5, chance: 0.35 }],
+    fx: { style: 'burst', rgb: '150,225,255' }, desc: 'คลื่นความเย็นแผ่รอบตัว ศัตรูใกล้ ๆ ช้าลง 5 วินาที และมีโอกาส 35% ถูกแช่แข็ง 1.5 วินาที' },
+    MAGE_ALL, [7, 1], [['coldBolt', 2]], 'cast', 0.9);
+  addMore('soulDrain', { name: 'Soul Drain', short: 'ดูดวิญญาณ', icon: '👁️‍🗨️', minLevel: 50, cost: 28, mult: 2.2, hits: 1, cd: 8, aoe: null, leech: { sp: 0.12 },
+    fx: { style: 'beam', rgb: '200,150,255' }, desc: 'ดูดวิญญาณศัตรู 1 ตัว ดาเมจแรง และฟื้น SP 12% ของ SP สูงสุด (ไฮวิซาร์ด)' },
+    HW_ALL, [8, 0], [['soulStrike', 2]], 'cast', 0.8);
+  addMore('manaShield', { name: 'Mana Shield', short: 'เกราะมานา', icon: '🔰', minLevel: 55, cost: 40, cd: 40, self: true, rgb: '170,170,255', shield: { pct: 0.3, dur: 18 },
+    fx: { style: 'aura', rgb: '170,170,255' }, desc: 'เกราะมานากันดาเมจได้เท่า 30% ของ HP สูงสุด นาน 18 วินาที (ไฮวิซาร์ด)' },
+    HW_ALL, [8, 1], [['arcaneMind', 2]], 'buff', 1.0);
+  addMore('absoluteZero', { name: 'Absolute Zero', short: 'ศูนย์สัมบูรณ์', icon: '🧊', minLevel: 115, cost: 110, mult: 2.2, hits: 1, cd: 25, aoe: { radius: 200, center: 'target' }, status: [{ kind: 'freeze', dur: 3.5 }, { kind: 'slow', dur: 4, k: 0.5 }],
+    fx: { style: 'pillar', rgb: '170,235,255' }, desc: 'อุณหภูมิลดลงสุดขีดรอบเป้าหมาย ศัตรูในวงถูกแช่แข็ง 3.5 วินาที (บอสแช่ได้แค่ครึ่งหนึ่ง) (จอมเวทย์ราชัน)' },
+    ['archMage'], [9, 0], [['chainLightning', 2]], 'sky', 1.3);
+  addMore('wildfire', { name: 'Wildfire', short: 'ไฟป่า', icon: '🌋', minLevel: 118, cost: 90, mult: 1.4, hits: 1, cd: 18, aoe: { radius: 190, center: 'target' }, status: [{ kind: 'burn', dur: 8, dps: 0.6 }],
+    fx: { style: 'rain', rgb: '255,120,60' }, desc: 'ไฟป่ากลืนกินศัตรูวงกว้าง ติดไฟเสียเลือดต่อเนื่อง 8 วินาที ไม่สนเกราะ (จอมเวทย์ราชัน)' },
+    ['archMage'], [9, 1], [['infernoField', 2]], 'sky', 1.2);
+  // ===== สายธนู =====
+  addMore('poisonArrow', { name: 'Poison Arrow', short: 'ธนูพิษ', icon: '☠️', minLevel: 30, cost: 18, mult: 1.1, hits: 1, cd: 5, aoe: null, status: [{ kind: 'poison', dur: 8, dps: 0.4 }],
+    fx: { style: 'beam', rgb: '150,230,90' }, desc: 'ยิงธนูอาบพิษ ศัตรูเสียเลือดต่อเนื่อง 8 วินาที ไม่สนเกราะ' },
+    ARCH_ALL, [7, 0], [['strafe', 3]], 'aim', 0.7);
+  addMore('backStep', { name: 'Back Step', short: 'ถอยยิง', icon: '💨', minLevel: 35, cost: 22, mult: 1.8, hits: 1, cd: 8, aoe: null, retreat: 110, status: [{ kind: 'slow', dur: 3, k: 0.5 }],
+    fx: { style: 'volley', rgb: '200,230,255' }, desc: 'ยิงศัตรู 1 ตัวแล้วกระโดดถอยหลังออกห่าง ศัตรูช้าลง 3 วินาที ใช้หนีเมื่อโดนประชิด' },
+    ARCH_ALL, [7, 1], [['fleetFoot', 2]], 'aim', 0.7);
+  addMore('armorPierce', { name: 'Armor Pierce', short: 'เจาะเกราะ', icon: '🎯', minLevel: 50, cost: 36, mult: 3.0, hits: 1, cd: 9, aoe: null, ignoreDef: 1,
+    fx: { style: 'beam', rgb: '255,190,120' }, desc: 'ยิงเจาะเกราะ ไม่สนค่า DEF ของเป้าหมายเลย เหมาะสู้บอสที่เกราะหนา (พรานป่า)' },
+    HUNTER_ALL, [8, 0], [['sharp', 2]], 'aim', 0.8);
+  addMore('weakPoint', { name: 'Weak Point', short: 'จุดอ่อน', icon: '🎯', minLevel: 55, cost: 30, mult: 2.0, hits: 1, cd: 8, aoe: null, execute: { below: 0.35, mult: 2.2 },
+    fx: { style: 'cross', rgb: '255,120,120' }, desc: 'เล็งจุดอ่อน ถ้าเป้าหมายเหลือเลือดต่ำกว่า 35% ดาเมจแรงขึ้น 2.2 เท่า เก็บมอนที่ใกล้ตาย (พรานป่า)' },
+    HUNTER_ALL, [8, 1], [['blitz', 2]], 'aim', 0.8);
+  addMore('pinShot', { name: 'Pin Shot', short: 'ตรึงเท้า', icon: '📌', minLevel: 115, cost: 70, mult: 2.8, hits: 1, cd: 22, aoe: { radius: 90, center: 'target' }, status: [{ kind: 'stun', dur: 3 }],
+    fx: { style: 'beam', rgb: '255,240,160' }, desc: 'ยิงตรึงเท้าศัตรูรอบเป้าหมายวงเล็ก ทำให้มึนขยับไม่ได้ 3 วินาที (บอสมึนได้แค่ครึ่งหนึ่ง) (ราชันธนู)' },
+    ['sniper'], [9, 0], [['deadlyShot', 2]], 'aim', 0.9);
+  addMore('venomRain', { name: 'Venom Rain', short: 'ฝนพิษ', icon: '🌧️', minLevel: 118, cost: 90, mult: 1.2, hits: 1, cd: 18, aoe: { radius: 190, center: 'target' }, status: [{ kind: 'poison', dur: 10, dps: 0.7 }, { kind: 'slow', dur: 4, k: 0.5 }],
+    fx: { style: 'rain', rgb: '150,230,90' }, desc: 'ฝนธนูอาบพิษตกวงกว้าง ศัตรูเสียเลือดต่อเนื่อง 10 วินาที และเดินช้าลง (ราชันธนู)' },
+    ['sniper'], [9, 1], [['arrowRain', 2]], 'volleyUp', 1.2);
   // ---------- ไอเทม ----------
   function eq(name, slot, kind, minLevel, price, bonus) {
     return Object.assign({ name, type: 'equip', slot, kind, minLevel, price, sell: Math.floor(price / 2) }, bonus);
@@ -2440,6 +2509,7 @@ const Logic = (function () {
     return b;
   }
   function tickBuffs(p, dt) {
+    if (p.shield) { p.shield.t -= dt; if (p.shield.t <= 0 || p.shield.hp <= 0) p.shield = null; }   // โล่หมดเวลา (0.69)
     if (!p.buffs) return;
     for (const id in p.buffs) { p.buffs[id] -= dt; if (p.buffs[id] <= 0) delete p.buffs[id]; }
   }
@@ -2760,25 +2830,80 @@ const Logic = (function () {
     for (let i = 0; i < SKILL_SLOT_COUNT; i++) out.push(i < n && typeof raw[i] === 'string' && own.indexOf(raw[i]) >= 0 && out.indexOf(raw[i]) < 0 ? raw[i] : null);
     return out;
   }
-  // ใช้สกิล: หัก SP แล้วสร้างดาเมจใส่เป้าหมายทั้งหมด คืน {ok, reason | results:[{m,dmgs,total,killed}]}
+  // ---------- สถานะบนมอนสเตอร์ (0.69): มึน/แช่แข็ง = หยุดทุกอย่าง · ชะลอ = เดิน/ตีช้าลง · เผาไหม้/พิษ = เสียเลือดต่อเนื่อง · บอสต้านทานมึน/แช่แข็งได้ครึ่งหนึ่ง ----------
+  const STATUS_INFO = {
+    stun:   { icon: '💫', name: 'มึน',      rgb: '255,230,120' },
+    freeze: { icon: '🧊', name: 'แช่แข็ง',  rgb: '160,230,255' },
+    slow:   { icon: '🐌', name: 'ชะลอ',     rgb: '120,190,255' },
+    burn:   { icon: '🔥', name: 'เผาไหม้',  rgb: '255,140,70' },
+    poison: { icon: '☠️', name: 'พิษ',      rgb: '150,230,90' }
+  };
+  function monStatusOf(m) { return m.st || (m.st = { stun: 0, slow: 0, slowK: 1, freeze: 0, burn: 0, burnDps: 0, burnAcc: 0, poison: 0, poisonDps: 0, poisonAcc: 0 }); }
+  // sp = {kind, dur, chance?, dps?, k?} · dpsBase = ATK ผู้เล่นที่ใช้คิดความแรงของ DoT · คืนชนิดสถานะที่ติด หรือ null
+  function applyStatus(m, sp, rng, dpsBase) {
+    const md = MONSTERS[m.id], hard = sp.kind === 'stun' || sp.kind === 'freeze', resist = hard ? (md.boss ? 0.5 : md.mini ? 0.75 : 1) : 1;
+    const ch = (sp.chance === undefined ? 1 : sp.chance) * resist;
+    if (ch < 1 && rng() >= ch) return null;
+    const st = monStatusOf(m), dur = sp.dur * resist;
+    if (sp.kind === 'slow') { st.slowK = st.slow > 0 ? Math.min(st.slowK, sp.k || 0.5) : (sp.k || 0.5); st.slow = Math.max(st.slow, dur); }
+    else if (hard) st[sp.kind] = Math.max(st[sp.kind], dur);
+    else { st[sp.kind] = Math.max(st[sp.kind], dur); st[sp.kind + 'Dps'] = Math.max(st[sp.kind + 'Dps'], (dpsBase || 0) * (sp.dps || 0) * (md.boss ? 0.6 : 1)); }
+    return sp.kind;
+  }
+  function statusActive(m) { const st = m.st; return st ? ['stun', 'freeze', 'slow', 'burn', 'poison'].filter(k => st[k] > 0) : []; }
+  // เดินเวลาสถานะ + ดาเมจต่อเนื่อง · คืน {dot, killed}
+  function tickMonsterStatus(m, dt) {
+    const st = m.st; if (!st) return { dot: 0, killed: false };
+    for (const k of ['stun', 'freeze', 'slow']) if (st[k] > 0) st[k] = Math.max(0, st[k] - dt);
+    if (st.slow <= 0) st.slowK = 1;
+    let dot = 0;
+    for (const k of ['burn', 'poison']) {
+      if (!(st[k] > 0)) continue;
+      st[k + 'Acc'] += st[k + 'Dps'] * Math.min(dt, st[k]); st[k] = Math.max(0, st[k] - dt);
+      const w = Math.floor(st[k + 'Acc']); if (w >= 1) { st[k + 'Acc'] -= w; dot += w; }
+      if (st[k] <= 0) { st[k + 'Dps'] = 0; st[k + 'Acc'] = 0; }
+    }
+    return { dot, killed: dot > 0 ? damageMonster(m, dot) : false };
+  }
+  // ผลบนพื้นที่รอบตัวผู้เล่น (สกิล util): ดึงมอนเข้ามา + ยั่วให้มาตีเรา
+  function applyUtil(p, u, monsters) {
+    let n = 0;
+    for (const m of monsters) {
+      if (m.dead) continue;
+      const d = Math.hypot(m.x - p.x, m.y - p.y); if (d > u.radius) continue;
+      n++;
+      if (u.pull && d > u.pull) { m.x = p.x + (m.x - p.x) / d * u.pull; m.y = p.y + (m.y - p.y) / d * u.pull; clampToMap(m); }
+      if (u.taunt) { m.chasing = true; m.returning = false; }
+    }
+    return n;
+  }
+  // ใช้สกิล: หัก SP แล้วสร้างดาเมจใส่เป้าหมายทั้งหมด คืน {ok, reason | results:[{m,dmgs,total,killed,st}], heal?, buff?, shield?, pulled?, leech?, leechSp?, moved?}
   function castSkill(p, id, primary, monsters, rng) {
     const s = SKILLS[id];
     if (!s || s.passive || !skillUnlocked(p, id)) return { ok: false, reason: s && s.passive ? 'passive' : 'locked' };
     const info = skillInfo(p, id);
-    if (s.heal && p.hp >= playerStats(p).maxHp) return { ok: false, reason: 'full' };   // HP เต็มไม่เสีย SP
+    if (s.heal && !s.shield && p.hp >= playerStats(p).maxHp) return { ok: false, reason: 'full' };   // HP เต็มไม่เสีย SP
     if (p.sp < info.cost) return { ok: false, reason: 'sp' };
     p.sp -= info.cost;
+    const out = { ok: true, results: [] };
     if (s.heal) {
       const mx = playerStats(p).maxHp, before = p.hp;
       p.hp = Math.min(mx, p.hp + Math.round(mx * s.heal * buffPower(p, id)));
-      return { ok: true, results: [], heal: Math.round(p.hp - before) };
+      out.heal = Math.round(p.hp - before);
+    }
+    if (s.shield) {   // โล่กันดาเมจ: กันได้ s.shield.pct ของ HP สูงสุด หมดเวลาหรือโดนจนหมดแล้วหาย
+      const hp = Math.round(playerStats(p).maxHp * s.shield.pct * buffPower(p, id));
+      p.shield = { hp, max: hp, t: s.shield.dur + ((skillLevel(p, id) || 1) - 1) };
+      out.shield = hp;
     }
     if (s.buff) {
       if (!p.buffs) p.buffs = {};
       p.buffs[id] = buffDuration(p, id);
-      return { ok: true, results: [], buff: id };
+      out.buff = id;
     }
-    const ps = playerStats(p), atk = ps.atk * info.mult;
+    if (s.util) out.pulled = applyUtil(p, s.util, monsters);
+    if (s.self) return out;
+    const ps = playerStats(p), atk = ps.atk * info.mult, lvK = SKILLS[id].mult > 0 ? info.mult / SKILLS[id].mult : 1;
     let targets;
     if (s.aoe) {
       const c = s.aoe.center === 'self' ? p : primary;
@@ -2786,15 +2911,30 @@ const Logic = (function () {
       if (primary && !primary.dead && targets.indexOf(primary) < 0) targets.unshift(primary);
       targets = targets.slice(0, MAX_AOE_TARGETS);
     } else targets = [primary];
-    const results = [];
+    const results = []; let dealt = 0;
     for (const m of targets) {
       const def = MONSTERS[m.id];
       const dmgs = []; let total = 0;
       const bm = def.boss && ps.bossPct ? 1 + ps.bossPct : 1;   // การ์ด/ของที่เพิ่มดาเมจใส่บอส
-      for (let h = 0; h < s.hits; h++) { const d = Math.max(1, Math.round(calcDamage(atk, def.def, rng) * bm)); dmgs.push(d); total += d; }
-      results.push({ m, dmgs, total, killed: damageMonster(m, total) });
+      const dd = s.ignoreDef ? def.def * (1 - s.ignoreDef) : def.def;   // ยิงเจาะเกราะ: ลดผลของ DEF
+      const ex = s.execute && m.hp < def.hp * s.execute.below ? s.execute.mult : 1;   // เล็งจุดอ่อน: แรงขึ้นกับเป้าที่เลือดใกล้หมด
+      for (let h = 0; h < s.hits; h++) { const d = Math.max(1, Math.round(calcDamage(atk, dd, rng) * bm * ex)); dmgs.push(d); total += d; }
+      const killed = damageMonster(m, total);
+      const st = [];
+      if (s.status && !killed) for (const sp of s.status) { const k = applyStatus(m, sp, rng, ps.atk * lvK); if (k) st.push(k); }
+      dealt += total;
+      results.push({ m, dmgs, total, killed, st });
     }
-    return { ok: true, results };
+    if (s.leech) {   // ดูดเลือด (สัดส่วนของดาเมจที่ทำได้) / ดูดมานา (สัดส่วนของ SP สูงสุด)
+      if (s.leech.hp) { const before = p.hp; p.hp = Math.min(ps.maxHp, p.hp + Math.round(dealt * s.leech.hp)); out.leech = Math.round(p.hp - before); }
+      if (s.leech.sp && results.length) { const before = p.sp; p.sp = Math.min(ps.maxSp, p.sp + Math.round(ps.maxSp * s.leech.sp)); out.leechSp = Math.round(p.sp - before); }
+    }
+    if (s.retreat && primary) {   // ถอยยิง: กระโดดถอยห่างจากเป้าหมายหลัก
+      const dx = p.x - primary.x, dy = p.y - primary.y, d = Math.hypot(dx, dy) || 1;
+      p.x += dx / d * s.retreat; p.y += dy / d * s.retreat; clampToMap(p); out.moved = true;
+    }
+    out.results = results;
+    return out;
   }
   // ---------- ตีโดน / หลบ / คริติคอล (สูตรแบบ Ragnarok: โอกาสโดน = 80 + HIT − FLEE ของอีกฝ่าย จำกัด 10-95%) ----------
   function monsterFlee(def) { return 15 + def.level * 2.5 + (def.boss ? 20 : def.mini ? 8 : 0); }
@@ -2812,12 +2952,15 @@ const Logic = (function () {
     if (rng() * 100 >= hitChancePct(st.hit, monsterFlee(mdef))) return { kind: 'miss', damage: 0 };
     return { kind: 'hit', damage: Math.max(1, Math.round(calcDamage(st.atk, mdef.def, rng) * bm)) };
   }
-  function hitPlayer(p, dmg) { p.hp = Math.max(0, p.hp - dmg); return p.hp <= 0; }
+  function hitPlayer(p, dmg) {
+    if (p.shield && p.shield.hp > 0 && dmg > 0) { const ab = Math.min(p.shield.hp, dmg); p.shield.hp -= ab; dmg -= ab; if (p.shield.hp <= 0) p.shield = null; }   // โล่กันดาเมจ (0.69)
+    p.hp = Math.max(0, p.hp - dmg); return p.hp <= 0;
+  }
   function respawnPlayer(p) {
     const s = playerStats(p), sp = MAPS[p.map].spawn;
     p.x = sp.x; p.y = sp.y;
     p.hp = Math.ceil(s.maxHp / 2);
-    p.buffs = {};
+    p.buffs = {}; p.shield = null;
     p.sp = s.maxSp;
   }
 
@@ -2825,7 +2968,7 @@ const Logic = (function () {
   function createMonster(id, x, y) {
     const def = MONSTERS[id];
     return { id, x, y, homeX: x, homeY: y, wx: x, wy: y, hp: def.hp, dead: false, respawn: 0,
-             chasing: false, returning: false, atkCd: 0, wanderT: 0, hitCount: 0, cast: null, skCd: {}, enrageT: 0, fleeT: 0, cornered: false };
+             chasing: false, returning: false, atkCd: 0, wanderT: 0, hitCount: 0, cast: null, skCd: {}, enrageT: 0, fleeT: 0, cornered: false, st: null };
   }
   function moveToward(o, tx, ty, speed, dt, stop) {
     stop = stop || 0;
@@ -2840,21 +2983,30 @@ const Logic = (function () {
   //      attacked: true ถ้ามอนสเตอร์ลงมือโจมตีในเฟรมนี้, miss: true ถ้าลงมือแล้วผู้เล่นหลบได้,
   //      skill: null หรือเหตุการณ์สกิลของมอนสเตอร์ {id, kind, phase: 'start'|'hit', ox, oy, x, y, r, tx, ty, wind, dmg, hit, ...} (ดาเมจสกิลอยู่ที่ skill.dmg ไม่ปนกับ attack)}
   function updateMonster(m, player, dt, rng, playerDef) {
+    let di = null;
+    if (m.st && !m.dead) { di = tickMonsterStatus(m, dt); if (di.killed) return { attack: 0, heavy: false, attacked: false, miss: false, skill: null, dot: di.dot, dotKilled: true }; }
+    const ev = updateMonsterCore(m, player, dt, rng, playerDef);
+    if (di && di.dot) ev.dot = di.dot;
+    return ev;
+  }
+  function updateMonsterCore(m, player, dt, rng, playerDef) {
     const def = MONSTERS[m.id];
     const none = { attack: 0, heavy: false, attacked: false, miss: false, skill: null };
     if (m.dead) {
       m.respawn -= dt;
       if (m.respawn <= 0) {
         m.dead = false; m.hp = def.hp; m.x = m.homeX; m.y = m.homeY;
-        m.chasing = false; m.returning = false; m.atkCd = 1; m.hitCount = 0; m.cast = null; m.skCd = {}; m.enrageT = 0; m.fleeT = 0; m.cornered = false;
+        m.chasing = false; m.returning = false; m.atkCd = 1; m.hitCount = 0; m.cast = null; m.skCd = {}; m.enrageT = 0; m.fleeT = 0; m.cornered = false; m.st = null;
       }
       return none;
     }
-    m.atkCd = Math.max(0, m.atkCd - dt);
+    const sst = m.st, slowK = sst && sst.slow > 0 ? sst.slowK : 1, spd = def.speed * slowK;   // ชะลอ: เดินและตีช้าลง (0.69)
+    m.atkCd = Math.max(0, m.atkCd - dt * slowK);
+    if (sst && (sst.stun > 0 || sst.freeze > 0)) { m.cast = null; return none; }   // มึน/แช่แข็ง: ทำอะไรไม่ได้
     if (m.enrageT > 0) m.enrageT = Math.max(0, m.enrageT - dt);
     if (m.skCd) for (const k in m.skCd) if (m.skCd[k] > 0) m.skCd[k] = Math.max(0, m.skCd[k] - dt);
     if (m.returning) {
-      if (moveToward(m, m.homeX, m.homeY, def.speed, dt, 8)) m.returning = false;
+      if (moveToward(m, m.homeX, m.homeY, spd, dt, 8)) m.returning = false;
       return none;
     }
     const playerTargetable = player.hp > 0 && !inSafe(player.map, player);
@@ -2869,8 +3021,8 @@ const Logic = (function () {
         if (m.fleeT > 0) {
           m.fleeT -= dt;
           const bx = m.x, by = m.y, ax = m.x - player.x, ay = m.y - player.y, al = Math.hypot(ax, ay) || 1;
-          moveToward(m, m.x + ax / al * 200, m.y + ay / al * 200, def.speed * 1.15, dt, 0);
-          if (Math.hypot(m.x - bx, m.y - by) < def.speed * dt * 0.25) m.cornered = true;
+          moveToward(m, m.x + ax / al * 200, m.y + ay / al * 200, spd * 1.15, dt, 0);
+          if (Math.hypot(m.x - bx, m.y - by) < spd * dt * 0.25) m.cornered = true;
           return none;
         }
         m.chasing = false; return none;
@@ -2878,7 +3030,7 @@ const Logic = (function () {
       if (m.cast) return progressCast(m, def, player, dt, rng, playerDef, none);
       const sk = def.skills && pickMonsterSkill(m, def, dp);
       if (sk) return startCast(m, def, sk, player);
-      if (dp > MONSTER_REACH) { moveToward(m, player.x, player.y, def.speed, dt, MONSTER_REACH - 6); return none; }
+      if (dp > MONSTER_REACH) { moveToward(m, player.x, player.y, spd, dt, MONSTER_REACH - 6); return none; }
       if (m.atkCd <= 0) {
         m.atkCd = def.atkCd;
         m.hitCount++;
@@ -2897,7 +3049,7 @@ const Logic = (function () {
       const a = rng() * Math.PI * 2, r = rng() * 70;
       m.wx = m.homeX + Math.cos(a) * r; m.wy = m.homeY + Math.sin(a) * r;
     }
-    moveToward(m, m.wx, m.wy, def.speed * 0.4, dt, 4);
+    moveToward(m, m.wx, m.wy, spd * 0.4, dt, 4);
     return none;
   }
   // ---------- สกิลมอนสเตอร์ ----------
@@ -2957,7 +3109,7 @@ const Logic = (function () {
     m.hp -= dmg;
     const dm = MONSTERS[m.id]; if (dm && dm.temper === 'coward') { m.fleeT = COWARD_FLEE_TIME; if (!m.chasing) m.cornered = false; }
     if (m.hp <= 0) {
-      m.hp = 0; m.dead = true; m.cast = null; m.respawn = MONSTERS[m.id].respawn || RESPAWN_TIME; m.chasing = false; m.returning = false;
+      m.hp = 0; m.dead = true; m.cast = null; m.st = null; m.respawn = MONSTERS[m.id].respawn || RESPAWN_TIME; m.chasing = false; m.returning = false;
       return true;
     }
     m.chasing = true; m.returning = false;
@@ -3017,6 +3169,7 @@ const Logic = (function () {
     const hpRatio = p.hp / playerStats(p).maxHp;
     for (const id of ids) if (SKILLS[id].heal && hpRatio < 0.5 && ready(id)) return id;                                               // HP ต่ำ → ฟื้นฟูก่อน
     for (const id of ids) if (SKILLS[id].buff && !(p.buffs && p.buffs[id] > 0) && target && !target.dead && ready(id)) return id;    // บัฟที่ยังไม่ติด
+    for (const id of ids) if (SKILLS[id].shield && !p.shield && target && !target.dead && ready(id)) return id;                       // โล่ที่ยังไม่มี (0.69)
     for (let i = ids.length - 1; i >= 0; i--) {
       const id = ids[i], s = SKILLS[id];
       if (s.self || !ready(id)) continue;
@@ -4420,7 +4573,7 @@ const Logic = (function () {
     JOB_LEVEL_MAX, jobExpToNext, jobLevelOf, gainExpEx, lineOf, ADV_OF, ADV_BASE_LEVEL, ADV_JOB_LEVEL, ADV_COST, advanceReq, advanceJob,
     SKILL_SLOT_COUNT, SKILL_SLOT5_LEVEL, SKILL_SLOT6_LEVEL, T3_SKILLS, T3_POSE, T3_FX_DUR, skillSlotCount, buffBonus, tickBuffs, activeBuffs, skillSlots, setSkillSlot, sanitizeSkillSlots,
     SKILL_MAX, skillPointsEarned, skillPointsTotal, jobBankOf, skillUpCost, skillLevel, skillPointsSpent, skillPointsFree, skillMult, skillCost, skillInfo, upgradeSkill, resetSkills, sanitizeSkillLv,
-    gainExp, expMultiplier, calcDamage, skillsOf, activeSkillsOf, skillReqs, passiveBonus, SKILL_TREE, skillUnlocked, castSkill, hitPlayer, respawnPlayer,
+    gainExp, expMultiplier, calcDamage, skillsOf, activeSkillsOf, skillReqs, passiveBonus, SKILL_TREE, skillUnlocked, castSkill, STATUS_INFO, applyStatus, statusActive, tickMonsterStatus, hitPlayer, respawnPlayer,
     createMonster, moveToward, updateMonster, damageMonster, rollDrops, scatterDrops, tickDrops, collectDrops, nearestDrop,
     pickAutoTarget, pickAutoSkill, shouldAutoPotion, sanitizeAuto,
     countItem, addItem, removeItem, itemDesc, canEquip, equipItem, unequipItem, slotCount, cardsIn, slotCard, unslotCard,
@@ -6057,19 +6210,19 @@ const Logic = (function () {
     }
     const wrap = el('div', 'skwrap'), lcol = el('div');
     // ต้นไม้สกิล: ตารางคอลัมน์ 3 × แถวตาม pos ของแต่ละสกิล + เส้นเชื่อมจากสกิลที่ต้องอัพก่อน (สีส้ม = เงื่อนไขครบแล้ว)
-    const ROW_H = 92, rows = Math.max.apply(null, ids.map(i => L.SKILLS[i].pos[0])) + 1, slotsNow = L.skillSlots(p);
+    const ROW_H = 92, usedRows = Array.from(new Set(ids.map(i => L.SKILLS[i].pos[0]))).sort((a, b) => a - b), rowOf = r => usedRows.indexOf(r), rows = usedRows.length, slotsNow = L.skillSlots(p);   // บีบแถวที่ว่างออก (0.69: สกิลเสริมอยู่แถว 7-9)
     const tree = el('div', 'sktree'); tree.style.height = rows * ROW_H + 'px';
     const NS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS, 'svg');
     svg.setAttribute('viewBox', '0 0 300 ' + rows * ROW_H); svg.setAttribute('preserveAspectRatio', 'none'); svg.setAttribute('aria-hidden', 'true');
     for (const id of ids) for (const r of L.skillReqs(p, id)) {
       const a = L.SKILLS[r.id].pos, b = L.SKILLS[id].pos, ln = document.createElementNS(NS, 'line');
-      ln.setAttribute('x1', (a[1] + 0.5) * 100); ln.setAttribute('y1', a[0] * ROW_H + 28 + 24); ln.setAttribute('x2', (b[1] + 0.5) * 100); ln.setAttribute('y2', b[0] * ROW_H + 28 - 24);
+      ln.setAttribute('x1', (a[1] + 0.5) * 100); ln.setAttribute('y1', rowOf(a[0]) * ROW_H + 28 + 24); ln.setAttribute('x2', (b[1] + 0.5) * 100); ln.setAttribute('y2', rowOf(b[0]) * ROW_H + 28 - 24);
       ln.setAttribute('class', r.ok ? 'on' : ''); svg.appendChild(ln);
     }
     tree.appendChild(svg);
     for (const id of ids) {
       const s = L.SKILLS[id], lv = L.skillLevel(p, id), cell = el('div', 'skcell');
-      cell.style.gridRow = s.pos[0] + 1; cell.style.gridColumn = s.pos[1] + 1;
+      cell.style.gridRow = rowOf(s.pos[0]) + 1; cell.style.gridColumn = s.pos[1] + 1;
       const b = el('button', 'sk' + (lv ? '' : ' lock') + (s.passive ? ' passive' : '') + (id === ui.skSel ? ' sel' : ''), lv ? s.icon : '🔒'); b.type = 'button';
       b.setAttribute('aria-label', s.name + (lv ? ' เลเวล ' + lv : ' ยังล็อก') + (s.passive ? ' สกิลติดตัว' : ''));
       if (lv) b.appendChild(el('span', 'n', 'Lv' + lv));
@@ -6099,6 +6252,7 @@ const Logic = (function () {
       add('ชนิด', 'สกิลติดตัว (ใช้งานเองตลอด ไม่ใช้ปุ่ม/SP)');
     } else {
       add('ปุ่มลัด', slotNow >= 0 ? 'ช่อง ' + (slotNow + 1) + ' (กด ' + (slotNow < 3 ? slotNow + 1 : slotNow + 2) + ')' : 'ยังไม่ได้ใส่ช่อง (ออโต้ยังใช้ให้)');
+      if (s.shield) { const pcs = k => Math.round(s.shield.pct * (1 + 0.08 * (k - 1)) * 100) + '%'; add('โล่กันดาเมจ', pcs(lv || 1) + ' ของ HP สูงสุด นาน ' + (s.shield.dur + ((lv || 1) - 1)) + ' วิ' + (nxt ? ' → ' + pcs(lv + 1) : ''), !!nxt); }
       if (s.heal) {
         const pc = k => Math.round(s.heal * (1 + 0.08 * (k - 1)) * 100) + '%';
         add('ฟื้น HP', pc(lv || 1) + ' ของ HP สูงสุด' + (nxt ? ' → ' + pc(lv + 1) : ''), !!nxt);
@@ -6109,7 +6263,13 @@ const Logic = (function () {
           add(NM[key], f(lv || 1) + (nxt && s.buff[key] > 0 ? ' → ' + f(lv + 1) : ''), !!nxt && s.buff[key] > 0);
         }
         add('นาน', s.buff.dur + ((lv || 1) - 1) + ' วิ' + (nxt ? ' → ' + (s.buff.dur + lv) + ' วิ' : ''), !!nxt);
-      } else add('ดาเมจ', mult(cur.mult) + (s.hits > 1 ? ' × ' + s.hits + ' ครั้ง' : '') + (nxt ? ' → ' + mult(nxt.mult) : ''), !!nxt);
+      } else if (!s.shield && !s.util) add('ดาเมจ', mult(cur.mult) + (s.hits > 1 ? ' × ' + s.hits + ' ครั้ง' : '') + (nxt ? ' → ' + mult(nxt.mult) : ''), !!nxt);
+      if (s.status) add('ติดสถานะ', s.status.map(x => L.STATUS_INFO[x.kind].icon + L.STATUS_INFO[x.kind].name + ' ' + x.dur + ' วิ' + (x.chance ? ' (' + Math.round(x.chance * 100) + '%)' : '')).join(' · '));
+      if (s.util) add('ยั่วยุ', 'ดึงมอนในรัศมี ' + s.util.radius + ' เข้ามาตีเรา');
+      if (s.leech) add('ดูดกลับ', (s.leech.hp ? 'HP ' + Math.round(s.leech.hp * 100) + '% ของดาเมจ ' : '') + (s.leech.sp ? 'SP ' + Math.round(s.leech.sp * 100) + '% ของ SP สูงสุด' : ''));
+      if (s.ignoreDef) add('พิเศษ', 'ไม่สนค่า DEF ของเป้าหมาย');
+      if (s.execute) add('พิเศษ', 'เป้าเลือดต่ำกว่า ' + Math.round(s.execute.below * 100) + '% แรงขึ้น ×' + s.execute.mult);
+      if (s.retreat) add('พิเศษ', 'กระโดดถอยหลัง ' + s.retreat + ' หน่วย');
       add('ใช้ SP', cur.cost + (nxt ? ' → ' + nxt.cost : ''));
       add('คูลดาวน์', L.skillCooldown(p, id) + ' วิ');
       add('รูปแบบ', s.self ? 'ใช้กับตัวเอง (ไม่ต้องมีเป้าหมาย)' : kind);
@@ -6787,14 +6947,25 @@ const Logic = (function () {
     rt.cd[id] = L.skillCooldown(p, id);
     startAct('skill', id);   // ท่าเฉพาะของสกิล (0.23)
     addSkillFx(id, p, m, r.results);   // เอฟเฟกต์สกิลแบบอลังการ (0.20) · สกิลที่ไม่มีท่าเฉพาะจะเป็นวงแหวนเดิม
-    sfx(s.heal || s.buff ? 'potion' : L.lineOf(p.job) === 'mage' ? 'magic' : L.lineOf(p.job) === 'archer' ? 'arrow' : 'bash');
-    if (s.heal) { addFloat(p.x, p.y - 56, '+' + r.heal + ' HP', '#7dff9a'); addLog(s.icon + ' ' + s.name + ': ฟื้น HP +' + r.heal); return true; }
-    if (s.buff) { addFloat(p.x, p.y - 56, s.icon + ' ' + s.short, '#ffe9a8'); addLog(s.icon + ' ' + s.name + ' เริ่มทำงาน ' + Math.round(p.buffs[id]) + ' วินาที'); return true; }
+    sfx(s.heal || s.buff || s.shield ? 'potion' : L.lineOf(p.job) === 'mage' ? 'magic' : L.lineOf(p.job) === 'archer' ? 'arrow' : 'bash');
+    if (s.self) {   // สกิลใช้กับตัวเอง: ฟื้นฟู / บัฟ / โล่ / ยั่วยุ
+      const parts = [];
+      if (s.heal) { addFloat(p.x, p.y - 56, '+' + r.heal + ' HP', '#7dff9a'); parts.push('ฟื้น HP +' + r.heal); }
+      if (s.shield) { addFloat(p.x, p.y - (s.heal ? 70 : 56), '🛡 โล่ ' + r.shield, '#9fd8ff'); parts.push('โล่กันดาเมจ ' + r.shield + ' นาน ' + Math.round(p.shield.t) + ' วินาที'); }
+      if (s.buff) { addFloat(p.x, p.y - 56, s.icon + ' ' + s.short, '#ffe9a8'); parts.push('เริ่มทำงาน ' + Math.round(p.buffs[id]) + ' วินาที'); }
+      if (s.util) { parts.push('ดึงมอน ' + r.pulled + ' ตัว'); for (const m of world.monsters) if (!m.dead && m.chasing && Math.hypot(m.x - p.x, m.y - p.y) < 90) m.hitT = 0.15; }
+      addLog(s.icon + ' ' + s.name + ': ' + parts.join(' · '));
+      return true;
+    }
     r.results.forEach((x, i) => {
       x.m.hitT = 0.15;
       const label = i === 0 ? s.short + ' ' : '';
       addHit(x.m.x, x.m.y - 34, label + x.dmgs.join(' '), '#ffd24a', 14);
+      if (x.st && x.st.length) addFloat(x.m.x, x.m.y - 62, x.st.map(k => L.STATUS_INFO[k].icon + L.STATUS_INFO[k].name).join(' '), '#e8f4ff');
     });
+    if (r.leech > 0) addFloat(p.x, p.y - 56, '🩸 +' + r.leech + ' HP', '#ff9fb0');
+    if (r.leechSp > 0) addFloat(p.x, p.y - 70, '💧 +' + r.leechSp + ' SP', '#9fd0ff');
+    if (r.moved) { rt.dodgeT = 0.3; }
     for (const x of r.results) if (x.killed) onKill(x.m);
     return true;
   }
@@ -6857,11 +7028,12 @@ const Logic = (function () {
   }
   function playerHurt(dmg, heavy) {
     const p = state.player;
-    const dead = L.hitPlayer(p, dmg);
+    const sh0 = p.shield ? p.shield.hp : 0, ab = Math.min(sh0, dmg), dead = L.hitPlayer(p, dmg);
     game.combatT = 5;
-    addHit(p.x, p.y - 58, (heavy ? '💢 ' : '') + '-' + dmg, '#ff6b6b', heavy ? 14 : 12);
+    if (ab > 0) addHit(p.x, p.y - 70, '🛡 ' + ab, '#9fd8ff', 11);
+    if (dmg - ab > 0) addHit(p.x, p.y - 58, (heavy ? '💢 ' : '') + '-' + (dmg - ab), '#ff6b6b', heavy ? 14 : 12);
     sfx('hurt');
-    if (!dead) rt.hurtT = 0.32;   // สะดุ้งถอยหลัง (ท่าทางล้วน)
+    if (!dead && dmg - ab > 0) rt.hurtT = 0.32;   // สะดุ้งถอยหลัง (ท่าทางล้วน · โล่กันได้หมด = ไม่สะดุ้ง)
     if (dead) {
       game.deadT = 2.2;
       resetRuntime();
@@ -7060,6 +7232,8 @@ const Logic = (function () {
       if (m.hitT > 0) m.hitT -= dt;
       const mx0 = m.x, my0 = m.y;
       const ev = L.updateMonster(m, p, dt, Math.random, st.def);
+      if (ev.dot) { m.dotShow = (m.dotShow || 0) + ev.dot; m.dotT = (m.dotT || 0) + dt; if (m.dotT >= 0.9 || ev.dotKilled) { addHit(m.x, m.y - 40, String(m.dotShow), L.statusActive(m).indexOf('poison') >= 0 ? '#9be26a' : '#ff9a55', 11); m.dotShow = 0; m.dotT = 0; } }
+      if (ev.dotKilled) { onKill(m); continue; }
       if (m.x !== mx0 || m.y !== my0) { if (L.terrainAt(p.map, m.x, m.y) === 2) { m.x = mx0; m.y = my0; } }   // มอนสเตอร์ลงน้ำลึกไม่ได้
       if (ev.skill) monsterSkillEvent(m, ev.skill);
       if (ev.attack > 0 && game.deadT <= 0) playerHurt(ev.attack, ev.heavy);
@@ -8733,7 +8907,13 @@ const Logic = (function () {
     ctx.restore(); softCorners = 0;
     drawWeapon(p, wx, wy, ease);
     hand(wx, wy, 2.6, O.glove);
-    if (z.hurt > 0) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; glow(x, y - 22, 28, '255,60,60', 0.4 * z.hurt); ctx.restore(); }   // วาบแดงตอนโดนตี (ค่อย ๆ จาง ไม่กะพริบ)
+    if (z.hurt > 0) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; glow(x, y - 22, 28, '255,60,60', 0.4 * z.hurt); ctx.restore(); }
+    if (p.shield && p.shield.hp > 0) {   // โล่กันดาเมจ (0.69): ฟองแสงรอบตัว จางลงตามโล่ที่เหลือ · ใกล้หมดเวลาจะจางลงนุ่ม ๆ (ไม่กะพริบถี่)
+      const k = Math.max(0.25, p.shield.hp / (p.shield.max || p.shield.hp)), fade = Math.min(1, p.shield.t / 2);
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = fade;
+      ctx.fillStyle = 'rgba(150,215,255,' + (0.1 + 0.1 * k) + ')'; ctx.beginPath(); ctx.ellipse(x, y - 15, 15, 21, 0, 0, 6.2832); ctx.fill();
+      ctx.strokeStyle = 'rgba(200,235,255,' + (0.35 + 0.3 * k + 0.08 * Math.sin(t * 3)) + ')'; ctx.lineWidth = 1.6; ctx.stroke(); ctx.restore();
+    }   // วาบแดงตอนโดนตี (ค่อย ๆ จาง ไม่กะพริบ)
     ctx.restore();
   }
 
@@ -10001,6 +10181,20 @@ const Logic = (function () {
       hpBar(m.x, top, m.hp / def.hp, 36);
       if (rt.target === m) label(L.TEMPER_ICON[def.temper] + ' ' + def.name + ' Lv' + def.level, m.x, top - 5, '#ffe9a8', 10);
     }
+    drawMonStatus(m, def, sc, top);
+  }
+  // สถานะบนมอนสเตอร์ (0.69): แสงสีที่ตัว + ไอคอนเหนือหัว (มึน = ดาวหมุน) · ไม่กะพริบถี่
+  function drawMonStatus(m, def, sc, top) {
+    const sts = L.statusActive(m); if (!sts.length) return;
+    const t = game.time, cy = m.y - 18 * sc;
+    for (const k of sts) {
+      const rgb = L.STATUS_INFO[k].rgb;
+      if (k === 'freeze') { ctx.save(); ctx.globalAlpha *= 0.55; ctx.fillStyle = 'rgba(170,230,255,.7)'; ctx.beginPath(); ctx.ellipse(m.x, cy, 17 * sc, 21 * sc, 0, 0, 6.2832); ctx.fill(); ctx.strokeStyle = 'rgba(230,248,255,.95)'; ctx.lineWidth = 1.5; ctx.stroke(); ctx.restore(); }
+      else if (k === 'stun') { for (let i = 0; i < 3; i++) { const a = t * 3.2 + i * 2.094; star5(m.x + Math.cos(a) * 13 * sc, top - 2 + Math.sin(a) * 3.5, 3.2, '#ffe14a'); } }
+      else glow(m.x, cy, 20 * sc, rgb, k === 'slow' ? 0.18 : 0.26 + 0.06 * Math.sin(t * 5));
+    }
+    const dy = def.boss ? 20 : def.mini ? 16 : 14;
+    sts.forEach((k, i) => label(L.STATUS_INFO[k].icon, m.x + (i - (sts.length - 1) / 2) * 14, top - dy, '#ffffff', 11));
   }
   // NPC สไตล์เดียวกับผู้เล่น (สัดส่วน 3 หัว สีนุ่ม ตาเล็ก) — หันหน้าหาผู้เล่น แต่ละคนมีของประจำตัว/ทรงผม/หมวกต่างกันตาม id (id ใหม่ไม่อยู่ในตาราง = ผ้าคาดหัวธรรมดา)
   const NPC_LOOK = { elder: 'elder', merchant: 'band', jobmaster: 'trainer', explorer: 'hat', merchant2: 'turban', miner: 'helmet', merchant3: 'long' };
